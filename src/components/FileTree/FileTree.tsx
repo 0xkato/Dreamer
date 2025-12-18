@@ -7,7 +7,7 @@ import { NewFileDialog } from './NewFileDialog';
 export function FileTree() {
   const { currentProject } = useProjectStore();
   const { nodes, isLoading, error, refreshTree, expandedPaths, selectedPath, setSelectedPath, renameNode } = useFileTreeStore();
-  const { openFile, activeFilePath, openFiles, saveFile } = useEditorStore();
+  const { openFile, activeFilePath, openFiles, saveFile, updateFilePath } = useEditorStore();
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [newFileDialog, setNewFileDialog] = useState<{
@@ -117,8 +117,34 @@ export function FileTree() {
       setRenameDialog(null);
       return;
     }
+
+    const oldPath = renameDialog.nodePath;
+    const newName = renameDialog.newName.trim();
+
+    // Calculate new paths
+    const pathParts = oldPath.split('/');
+    pathParts.pop();
+    const newPath = pathParts.length > 0 ? `${pathParts.join('/')}/${newName}` : newName;
+
+    const absPathParts = renameDialog.absolutePath.split('/');
+    absPathParts.pop();
+    const newAbsolutePath = `${absPathParts.join('/')}/${newName}`;
+
     try {
-      await renameNode(currentProject.path, renameDialog.absolutePath, renameDialog.newName.trim());
+      // If this file is currently open, save it first
+      const openFile = openFiles.get(oldPath);
+      if (openFile && openFile.isDirty) {
+        await saveFile(currentProject.path, oldPath);
+      }
+
+      // Rename on disk
+      await renameNode(currentProject.path, renameDialog.absolutePath, newName);
+
+      // Update editor to point to new path
+      if (openFiles.has(oldPath)) {
+        updateFilePath(oldPath, newPath, newAbsolutePath, newName);
+      }
+
       setRenameDialog(null);
     } catch (error) {
       // Error is handled by the store

@@ -48,6 +48,9 @@ interface EditorStore {
   saveActiveFile: (projectPath: string) => Promise<void>;
   saveAllDirtyFiles: (projectPath: string) => Promise<void>;
 
+  // Path update (for rename)
+  updateFilePath: (oldPath: string, newPath: string, newAbsolutePath: string, newName: string) => void;
+
   // Auto-save config
   setAutoSave: (enabled: boolean, interval?: number) => void;
 
@@ -251,6 +254,32 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     for (const [path] of dirtyFiles) {
       await saveFile(projectPath, path);
     }
+  },
+
+  updateFilePath: (oldPath, newPath, newAbsolutePath, newName) => {
+    const { openFiles, activeFilePath } = get();
+    const file = openFiles.get(oldPath);
+
+    if (!file) return;
+
+    // Create new map with updated path
+    const newOpenFiles = new Map(openFiles);
+    newOpenFiles.delete(oldPath);
+    newOpenFiles.set(newPath, {
+      ...file,
+      id: newPath,
+      path: newPath,
+      absolutePath: newAbsolutePath,
+      name: newName,
+    });
+
+    // Update active file path if it was the renamed file
+    const newActiveFilePath = activeFilePath === oldPath ? newPath : activeFilePath;
+
+    set({
+      openFiles: newOpenFiles,
+      activeFilePath: newActiveFilePath,
+    });
   },
 
   setAutoSave: (enabled, interval) => {
