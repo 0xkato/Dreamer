@@ -13,10 +13,11 @@ interface FileTreeContextMenuProps {
   state: ContextMenuState;
   onClose: () => void;
   onNewFile: (type: 'markdown' | 'canvas' | 'folder', parentPath: string) => void;
+  onRename: (nodePath: string, absolutePath: string, currentName: string) => void;
   projectPath: string;
 }
 
-export function FileTreeContextMenu({ state, onClose, onNewFile, projectPath }: FileTreeContextMenuProps) {
+export function FileTreeContextMenu({ state, onClose, onNewFile, onRename, projectPath }: FileTreeContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const { deleteNode, nodes } = useFileTreeStore();
 
@@ -124,10 +125,26 @@ export function FileTreeContextMenu({ state, onClose, onNewFile, projectPath }: 
         New Folder
       </button>
 
-      {/* Separator and delete option for files/folders */}
+      {/* Separator and rename/delete options for files/folders */}
       {state.nodePath && state.nodeType !== 'root' && (
         <>
           <div className="my-1 border-t border-slate-200" />
+          <button
+            onClick={() => {
+              const absolutePath = findNodeAbsolutePath(state.nodePath!);
+              if (absolutePath) {
+                const currentName = state.nodePath!.split('/').pop() || '';
+                onRename(state.nodePath!, absolutePath, currentName);
+              }
+              onClose();
+            }}
+            className="w-full px-3 py-1.5 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+          >
+            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Rename
+          </button>
           <button
             onClick={handleDelete}
             className="w-full px-3 py-1.5 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-2"

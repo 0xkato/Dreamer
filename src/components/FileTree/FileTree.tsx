@@ -6,7 +6,7 @@ import { NewFileDialog } from './NewFileDialog';
 
 export function FileTree() {
   const { currentProject } = useProjectStore();
-  const { nodes, isLoading, error, refreshTree, expandedPaths, selectedPath, setSelectedPath } = useFileTreeStore();
+  const { nodes, isLoading, error, refreshTree, expandedPaths, selectedPath, setSelectedPath, renameNode } = useFileTreeStore();
   const { openFile, activeFilePath, openFiles, saveFile } = useEditorStore();
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -22,6 +22,15 @@ export function FileTree() {
     pendingPath: string;
     pendingType: 'markdown' | 'canvas';
     currentFileName: string;
+  } | null>(null);
+
+  // Rename dialog state
+  const [renameDialog, setRenameDialog] = useState<{
+    isOpen: boolean;
+    nodePath: string;
+    absolutePath: string;
+    currentName: string;
+    newName: string;
   } | null>(null);
 
   // Load file tree when project changes
@@ -89,6 +98,31 @@ export function FileTree() {
 
   const handleCancelSwitch = () => {
     setUnsavedDialog(null);
+  };
+
+  // Rename handlers
+  const handleRename = (nodePath: string, absolutePath: string, currentName: string) => {
+    setRenameDialog({
+      isOpen: true,
+      nodePath,
+      absolutePath,
+      currentName,
+      newName: currentName,
+    });
+  };
+
+  const handleRenameSubmit = async () => {
+    if (!currentProject || !renameDialog || !renameDialog.newName.trim()) return;
+    if (renameDialog.newName === renameDialog.currentName) {
+      setRenameDialog(null);
+      return;
+    }
+    try {
+      await renameNode(currentProject.path, renameDialog.absolutePath, renameDialog.newName.trim());
+      setRenameDialog(null);
+    } catch (error) {
+      // Error is handled by the store
+    }
   };
 
   const handleFileSelect = (path: string) => {
@@ -201,6 +235,7 @@ export function FileTree() {
           state={contextMenu}
           onClose={handleCloseContextMenu}
           onNewFile={handleNewFile}
+          onRename={handleRename}
           projectPath={currentProject.path}
         />
       )}
@@ -245,6 +280,45 @@ export function FileTree() {
                   className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                 >
                   Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename dialog */}
+      {renameDialog?.isOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200">
+              <h2 className="text-lg font-semibold text-slate-800">Rename</h2>
+            </div>
+            <div className="p-6">
+              <input
+                type="text"
+                value={renameDialog.newName}
+                onChange={(e) => setRenameDialog({ ...renameDialog, newName: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRenameSubmit();
+                  if (e.key === 'Escape') setRenameDialog(null);
+                }}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-4"
+                autoFocus
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setRenameDialog(null)}
+                  className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRenameSubmit}
+                  disabled={!renameDialog.newName.trim()}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                >
+                  Rename
                 </button>
               </div>
             </div>
