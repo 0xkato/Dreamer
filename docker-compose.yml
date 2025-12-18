@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  dreamer:
+    build: .
+    container_name: dreamer
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persist data between container restarts
+      - dreamer-data:/app/server/data
+      - dreamer-projects:/app/server/projects
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+
+volumes:
+  dreamer-data:
+  dreamer-projects:

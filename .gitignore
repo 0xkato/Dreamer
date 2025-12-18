@@ -1,0 +1,24 @@
+# Dependencies
+node_modules
+server/node_modules
+
+# Build output
+dist
+
+# Data (created at runtime)
+server/data
+server/projects
+
+# Tauri (legacy)
+src-tauri
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+
+# Logs
+*.log
