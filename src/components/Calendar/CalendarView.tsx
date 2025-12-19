@@ -51,6 +51,12 @@ export function CalendarView() {
   const [draggedTodo, setDraggedTodo] = useState<CalendarTodo | null>(null);
   const [dropTargetEventId, setDropTargetEventId] = useState<string | null>(null);
 
+  // Current time indicator
+  const [currentTime, setCurrentTime] = useState(() => {
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes();
+  });
+
   const gridRef = useRef<HTMLDivElement>(null);
 
   // Load calendar when project changes
@@ -59,6 +65,21 @@ export function CalendarView() {
       loadCalendar(currentProject.path);
     }
   }, [currentProject, loadCalendar]);
+
+  // Update current time every minute
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(now.getHours() * 60 + now.getMinutes());
+    };
+
+    // Update immediately
+    updateTime();
+
+    // Then update every minute
+    const interval = setInterval(updateTime, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Generate week days
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -221,6 +242,34 @@ export function CalendarView() {
     setDropTargetEventId(null);
   };
 
+
+  // Render current time indicator
+  const renderTimeIndicator = () => {
+    // Find if today is in the current week
+    const todayIndex = weekDays.findIndex(date => date === today);
+    if (todayIndex === -1) return null;
+
+    const top = timeToY(currentTime);
+
+    return (
+      <div
+        className="absolute pointer-events-none z-20"
+        style={{
+          top,
+          left: `calc(${todayIndex * (100 / 7)}%)`,
+          width: `calc(${100 / 7}%)`,
+        }}
+      >
+        {/* Red dot */}
+        <div
+          className="absolute w-3 h-3 bg-red-500 rounded-full -left-1.5"
+          style={{ top: -5 }}
+        />
+        {/* Red line */}
+        <div className="h-0.5 bg-red-500 w-full" />
+      </div>
+    );
+  };
 
   // Render drag preview
   const renderDragPreview = () => {
@@ -411,6 +460,9 @@ export function CalendarView() {
                 const dayEvents = getEventsForDate(date);
                 return dayEvents.map(event => renderEvent(event, dayIndex));
               })}
+
+              {/* Current time indicator */}
+              {renderTimeIndicator()}
 
               {/* Drag preview */}
               {renderDragPreview()}
