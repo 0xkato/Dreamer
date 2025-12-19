@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useCalendarStore, useProjectStore } from '../../store';
-import { getTodayString, addDays, getDayName, getFormattedDate, formatTime } from '../../types/calendar';
-import type { CalendarEvent, CalendarTodo } from '../../types/calendar';
+import { getTodayString, addDays, getDayName, getFormattedDate, formatTime, formatWeek } from '../../types/calendar';
+import type { CalendarEvent, WeeklyTodo } from '../../types/calendar';
 import { EventDialog } from './EventDialog';
-import { TodoPanel } from './TodoPanel';
+import { WeeklyTodoPanel } from './WeeklyTodoPanel';
 
 const HOUR_HEIGHT = 60; // pixels per hour
 const START_HOUR = 0; // Start at midnight
@@ -28,8 +28,8 @@ export function CalendarView() {
     updateEvent,
     deleteEvent,
     getEventsForDate,
-    assignTodoToBlock,
-    getTodosForBlock,
+    assignWeeklyTodoToDate,
+    getWeeklyTodosForDate,
   } = useCalendarStore();
 
   const [weekStart, setWeekStart] = useState(() => {
@@ -48,8 +48,8 @@ export function CalendarView() {
     endTime: number;
     event?: CalendarEvent;
   } | null>(null);
-  const [draggedTodo, setDraggedTodo] = useState<CalendarTodo | null>(null);
-  const [dropTargetEventId, setDropTargetEventId] = useState<string | null>(null);
+  const [draggedWeeklyTodo, setDraggedWeeklyTodo] = useState<WeeklyTodo | null>(null);
+  const [dropTargetDate, setDropTargetDate] = useState<string | null>(null);
 
   // Current time indicator
   const [currentTime, setCurrentTime] = useState(() => {
@@ -228,18 +228,18 @@ export function CalendarView() {
     setEventDialog(null);
   };
 
-  // Handle todo drag start
-  const handleTodoDragStart = (todo: CalendarTodo) => {
-    setDraggedTodo(todo);
+  // Handle weekly todo drag start
+  const handleWeeklyTodoDragStart = (todo: WeeklyTodo) => {
+    setDraggedWeeklyTodo(todo);
   };
 
-  // Handle todo drop on event
-  const handleTodoDrop = async (eventId: string) => {
-    if (!currentProject || !draggedTodo) return;
+  // Handle weekly todo drop on date
+  const handleWeeklyTodoDropOnDate = async (date: string) => {
+    if (!currentProject || !draggedWeeklyTodo) return;
 
-    await assignTodoToBlock(currentProject.path, draggedTodo.id, eventId);
-    setDraggedTodo(null);
-    setDropTargetEventId(null);
+    await assignWeeklyTodoToDate(currentProject.path, draggedWeeklyTodo.id, date);
+    setDraggedWeeklyTodo(null);
+    setDropTargetDate(null);
   };
 
 
@@ -302,15 +302,11 @@ export function CalendarView() {
     const top = timeToY(event.startTime);
     const height = Math.max(timeToY(event.endTime) - top, 20);
     const bgColor = event.color || 'bg-indigo-500';
-    const isDropTarget = dropTargetEventId === event.id;
-    const eventTodos = getTodosForBlock(event.date, event.id);
 
     return (
       <div
         key={`${event.id}-${event.date}`}
-        className={`absolute ${bgColor} text-white rounded px-2 py-1 cursor-pointer hover:opacity-90 overflow-hidden shadow-sm transition-all ${
-          isDropTarget ? 'ring-2 ring-yellow-400 ring-offset-2' : ''
-        }`}
+        className={`absolute ${bgColor} text-white rounded px-2 py-1 cursor-pointer hover:opacity-90 overflow-hidden shadow-sm transition-all`}
         style={{
           top,
           height,
@@ -318,26 +314,11 @@ export function CalendarView() {
           width: `calc(${100 / 7}% - 4px)`,
         }}
         onClick={(e) => handleEventClick(e, event)}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDropTargetEventId(event.id);
-        }}
-        onDragLeave={() => setDropTargetEventId(null)}
-        onDrop={(e) => {
-          e.preventDefault();
-          handleTodoDrop(event.id);
-        }}
       >
         <div className="text-xs font-medium truncate">{event.title}</div>
         {height > 30 && (
           <div className="text-xs opacity-80">
             {formatTime(event.startTime)} - {formatTime(event.endTime)}
-          </div>
-        )}
-        {/* Show todo count */}
-        {eventTodos.length > 0 && (
-          <div className="absolute bottom-1 right-1 bg-white/20 rounded px-1.5 py-0.5 text-xs font-medium">
-            {eventTodos.filter(t => t.completed).length}/{eventTodos.length}
           </div>
         )}
         {event.repeat && event.repeatEnabled && (
@@ -350,9 +331,6 @@ export function CalendarView() {
       </div>
     );
   };
-
-  // Get work blocks for selected date (for todo panel)
-  const selectedDateBlocks = getEventsForDate(selectedDate);
 
   return (
     <div className="h-full flex bg-white">
@@ -385,32 +363,64 @@ export function CalendarView() {
             </button>
           </div>
 
-          <h2 className="text-lg font-semibold text-slate-800">
-            {getFormattedDate(weekStart)} - {getFormattedDate(addDays(weekStart, 6))}
-          </h2>
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-slate-800">
+              {getFormattedDate(weekStart)} - {getFormattedDate(addDays(weekStart, 6))}
+            </h2>
+            <span className="text-xs text-slate-500">{formatWeek(weekStart)}</span>
+          </div>
 
           <div className="w-24" /> {/* Spacer for balance */}
         </div>
 
-        {/* Day headers */}
+        {/* Day headers with drop zones */}
         <div className="flex border-b border-slate-200">
           <div className="w-16 flex-shrink-0" /> {/* Time column spacer */}
-          {weekDays.map((date) => (
-            <div
-              key={date}
-              className={`flex-1 py-2 text-center border-l border-slate-200 cursor-pointer transition-colors ${
-                date === today ? 'bg-indigo-50' : ''
-              } ${date === selectedDate ? 'ring-2 ring-inset ring-indigo-400' : ''} hover:bg-slate-50`}
-              onClick={() => handleDayClick(date)}
-            >
-              <div className="text-xs text-slate-500 uppercase">{getDayName(date)}</div>
-              <div className={`text-lg font-semibold ${
-                date === today ? 'text-indigo-600' : 'text-slate-800'
-              }`}>
-                {new Date(date).getDate()}
+          {weekDays.map((date) => {
+            const isDropTarget = dropTargetDate === date;
+            const dayTodos = getWeeklyTodosForDate(date);
+            const incompleteTodos = dayTodos.filter(t => !t.completed).length;
+
+            return (
+              <div
+                key={date}
+                className={`flex-1 py-2 text-center border-l border-slate-200 cursor-pointer transition-colors ${
+                  date === today ? 'bg-indigo-50' : ''
+                } ${date === selectedDate ? 'ring-2 ring-inset ring-indigo-400' : ''} ${
+                  isDropTarget ? 'bg-indigo-100 ring-2 ring-indigo-400' : ''
+                } hover:bg-slate-50`}
+                onClick={() => handleDayClick(date)}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (draggedWeeklyTodo) {
+                    setDropTargetDate(date);
+                  }
+                }}
+                onDragLeave={() => setDropTargetDate(null)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (draggedWeeklyTodo) {
+                    handleWeeklyTodoDropOnDate(date);
+                  }
+                }}
+              >
+                <div className="text-xs text-slate-500 uppercase">{getDayName(date)}</div>
+                <div className={`text-lg font-semibold ${
+                  date === today ? 'text-indigo-600' : 'text-slate-800'
+                }`}>
+                  {new Date(date).getDate()}
+                </div>
+                {/* Show todo count badge */}
+                {incompleteTodos > 0 && (
+                  <div className="mt-1">
+                    <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-700 rounded-full">
+                      {incompleteTodos}
+                    </span>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Time grid */}
@@ -471,11 +481,11 @@ export function CalendarView() {
         </div>
       </div>
 
-      {/* Todo Panel */}
-      <TodoPanel
+      {/* Weekly Todo Panel */}
+      <WeeklyTodoPanel
+        weekStart={weekStart}
         selectedDate={selectedDate}
-        workBlocks={selectedDateBlocks}
-        onDragStart={handleTodoDragStart}
+        onDragStart={handleWeeklyTodoDragStart}
       />
 
       {/* Event dialog */}

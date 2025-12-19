@@ -3,10 +3,12 @@ import { useProjectStore, useFileTreeStore, useEditorStore } from '../../store';
 import { FileTreeNode } from './FileTreeNode';
 import { FileTreeContextMenu, type ContextMenuState } from './FileTreeContextMenu';
 import { NewFileDialog } from './NewFileDialog';
+import { FOLDER_COLORS } from '../../types/project';
+import type { FileNode, FolderColor } from '../../types/project';
 
 export function FileTree() {
   const { currentProject } = useProjectStore();
-  const { nodes, isLoading, error, refreshTree, expandedPaths, selectedPath, setSelectedPath, renameNode } = useFileTreeStore();
+  const { nodes, isLoading, error, refreshTree, expandedPaths, selectedPath, setSelectedPath, renameNode, loadFolderColors, colorFilter, setColorFilter, getFolderColor } = useFileTreeStore();
   const { openFile, activeFilePath, openFiles, saveFile, updateFilePath } = useEditorStore();
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -33,12 +35,13 @@ export function FileTree() {
     newName: string;
   } | null>(null);
 
-  // Load file tree when project changes
+  // Load file tree and folder colors when project changes
   useEffect(() => {
     if (currentProject) {
       refreshTree(currentProject.path);
+      loadFolderColors(currentProject.path);
     }
-  }, [currentProject, refreshTree]);
+  }, [currentProject, refreshTree, loadFolderColors]);
 
   const handleContextMenu = (e: React.MouseEvent, nodePath: string | null, nodeType: 'folder' | 'markdown' | 'canvas' | 'root') => {
     e.preventDefault();
@@ -155,6 +158,34 @@ export function FileTree() {
     setSelectedPath(path);
   };
 
+  // Filter nodes by color - shows folders with the selected color and all their contents
+  const filterNodesByColor = (nodeList: FileNode[], filter: FolderColor | 'all'): FileNode[] => {
+    if (filter === 'all') return nodeList;
+
+    const result: FileNode[] = [];
+
+    for (const node of nodeList) {
+      if (node.type === 'folder') {
+        const folderColor = getFolderColor(node.path);
+        // If this folder matches the filter, include it with all children
+        if (folderColor === filter) {
+          result.push(node);
+        } else if (node.children) {
+          // Check if any child folder matches
+          const filteredChildren = filterNodesByColor(node.children, filter);
+          if (filteredChildren.length > 0) {
+            result.push({ ...node, children: filteredChildren });
+          }
+        }
+      }
+      // Files are only shown if they're inside a matching folder (handled by parent)
+    }
+
+    return result;
+  };
+
+  const filteredNodes = filterNodesByColor(nodes, colorFilter);
+
   if (!currentProject) {
     return null;
   }
@@ -205,6 +236,31 @@ export function FileTree() {
         </div>
       </div>
 
+      {/* Color filter bar */}
+      <div className="px-2 py-1.5 border-b border-slate-200 bg-white flex items-center gap-1">
+        <span className="text-xs text-slate-500 mr-1">Filter:</span>
+        <button
+          onClick={() => setColorFilter('all')}
+          className={`px-2 py-0.5 text-xs rounded transition-colors ${
+            colorFilter === 'all'
+              ? 'bg-slate-200 text-slate-700 font-medium'
+              : 'text-slate-500 hover:bg-slate-100'
+          }`}
+        >
+          All
+        </button>
+        {FOLDER_COLORS.map((color) => (
+          <button
+            key={color.id}
+            onClick={() => setColorFilter(color.id)}
+            className={`w-5 h-5 rounded-full ${color.bgClass} transition-transform hover:scale-110 ${
+              colorFilter === color.id ? 'ring-2 ring-slate-600 ring-offset-1' : ''
+            }`}
+            title={color.name}
+          />
+        ))}
+      </div>
+
       {/* Error message */}
       {error && (
         <div className="px-3 py-2 bg-red-50 border-b border-red-200">
@@ -236,9 +292,19 @@ export function FileTree() {
               Create your first note
             </button>
           </div>
+        ) : filteredNodes.length === 0 ? (
+          <div className="px-3 py-8 text-center">
+            <p className="text-sm text-slate-400 mb-2">No folders with this color</p>
+            <button
+              onClick={() => setColorFilter('all')}
+              className="text-sm text-indigo-600 hover:text-indigo-700"
+            >
+              Show all
+            </button>
+          </div>
         ) : (
           <div className="px-1">
-            {nodes.map((node) => (
+            {filteredNodes.map((node) => (
               <FileTreeNode
                 key={node.id}
                 node={node}

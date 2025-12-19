@@ -25,6 +25,17 @@ export interface CalendarTodo {
   createdAt: string;
 }
 
+// Weekly todo - belongs to a week, can be assigned to a specific day
+export interface WeeklyTodo {
+  id: string;
+  title: string;
+  weekStart: string; // YYYY-MM-DD - Sunday of the week this todo belongs to
+  assignedDate: string | null; // YYYY-MM-DD - specific day assigned, or null if unassigned
+  completed: boolean;
+  order: number; // For sorting
+  createdAt: string;
+}
+
 export interface CalendarDay {
   date: string; // YYYY-MM-DD
   events: CalendarEvent[];
@@ -34,6 +45,7 @@ export interface CalendarData {
   version: string;
   events: CalendarEvent[];
   todos: CalendarTodo[];
+  weeklyTodos?: WeeklyTodo[]; // New weekly todos
 }
 
 // Helper to check if a repeating event should show on a given date
@@ -127,4 +139,31 @@ export function getDayName(dateStr: string): string {
 export function getFormattedDate(dateStr: string): string {
   const date = new Date(dateStr);
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// Get the Sunday (start) of the week for a given date
+export function getWeekStart(dateStr: string): string {
+  const date = new Date(dateStr);
+  const day = date.getDay();
+  date.setDate(date.getDate() - day);
+  return date.toISOString().split('T')[0];
+}
+
+// Get week number of the year (ISO week)
+export function getWeekNumber(dateStr: string): number {
+  const date = new Date(dateStr);
+  date.setHours(0, 0, 0, 0);
+  // Thursday in current week decides the year
+  date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+  // January 4 is always in week 1
+  const week1 = new Date(date.getFullYear(), 0, 4);
+  // Adjust to Thursday in week 1 and count number of weeks from date to week1
+  return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+}
+
+// Format week as "Week X of YYYY"
+export function formatWeek(dateStr: string): string {
+  const weekNum = getWeekNumber(dateStr);
+  const date = new Date(dateStr);
+  return `Week ${weekNum} of ${date.getFullYear()}`;
 }

@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFileTreeStore } from '../../store';
 import type { FileNode } from '../../types/project';
+import { FOLDER_COLORS } from '../../types/project';
 
 export interface ContextMenuState {
   x: number;
@@ -19,7 +20,9 @@ interface FileTreeContextMenuProps {
 
 export function FileTreeContextMenu({ state, onClose, onNewFile, onRename, projectPath }: FileTreeContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
-  const { deleteNode, nodes } = useFileTreeStore();
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const { deleteNode, nodes, setFolderColor, getFolderColor } = useFileTreeStore();
+  const currentColor = state.nodePath && state.nodeType === 'folder' ? getFolderColor(state.nodePath) : null;
 
   // Find the node to get its absolute path
   const findNodeAbsolutePath = (path: string): string | null => {
@@ -145,6 +148,70 @@ export function FileTreeContextMenu({ state, onClose, onNewFile, onRename, proje
             </svg>
             Rename
           </button>
+
+          {/* Folder color picker - only for folders */}
+          {state.nodeType === 'folder' && (
+            <>
+              <div className="my-1 border-t border-slate-200" />
+              <div className="relative">
+                <button
+                  onClick={() => setShowColorPicker(!showColorPicker)}
+                  className="w-full px-3 py-1.5 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+                >
+                  <div className={`w-4 h-4 rounded-full border-2 ${
+                    currentColor
+                      ? FOLDER_COLORS.find(c => c.id === currentColor)?.bgClass
+                      : 'bg-slate-200'
+                  }`} />
+                  Folder Color
+                  <svg className={`w-3 h-3 ml-auto transition-transform ${showColorPicker ? 'rotate-180' : ''}`} fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+                  </svg>
+                </button>
+
+                {showColorPicker && (
+                  <div className="px-3 py-2 bg-slate-50">
+                    <div className="flex gap-1.5 flex-wrap">
+                      {/* No color option */}
+                      <button
+                        onClick={async () => {
+                          await setFolderColor(projectPath, state.nodePath!, null);
+                          setShowColorPicker(false);
+                          onClose();
+                        }}
+                        className={`w-6 h-6 rounded-full border-2 bg-white flex items-center justify-center hover:scale-110 transition-transform ${
+                          currentColor === null ? 'ring-2 ring-slate-400 ring-offset-1' : 'border-slate-300'
+                        }`}
+                        title="No color"
+                      >
+                        <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+
+                      {/* Color options */}
+                      {FOLDER_COLORS.map((color) => (
+                        <button
+                          key={color.id}
+                          onClick={async () => {
+                            await setFolderColor(projectPath, state.nodePath!, color.id);
+                            setShowColorPicker(false);
+                            onClose();
+                          }}
+                          className={`w-6 h-6 rounded-full ${color.bgClass} hover:scale-110 transition-transform ${
+                            currentColor === color.id ? 'ring-2 ring-slate-600 ring-offset-1' : ''
+                          }`}
+                          title={color.name}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          <div className="my-1 border-t border-slate-200" />
           <button
             onClick={handleDelete}
             className="w-full px-3 py-1.5 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-2"

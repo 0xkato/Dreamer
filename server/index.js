@@ -553,6 +553,42 @@ app.post('/api/calendar', async (req, res) => {
 });
 
 // ============================================
+// Folder Colors Endpoints
+// ============================================
+
+const FOLDER_COLORS_FILE = 'folder-colors.json';
+
+// Read folder colors
+app.get('/api/folder-colors', async (req, res) => {
+  try {
+    const { projectPath } = req.query;
+    const colorsPath = path.join(projectPath, FOLDER_COLORS_FILE);
+
+    try {
+      const content = await fs.readFile(colorsPath, 'utf-8');
+      res.json(JSON.parse(content));
+    } catch {
+      // Return empty object if file doesn't exist
+      res.json({});
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Write folder colors
+app.post('/api/folder-colors', async (req, res) => {
+  try {
+    const { projectPath, colors } = req.body;
+    const colorsPath = path.join(projectPath, FOLDER_COLORS_FILE);
+    await fs.writeFile(colorsPath, JSON.stringify(colors, null, 2));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // Dialog Endpoints (for file/folder selection UI)
 // ============================================
 

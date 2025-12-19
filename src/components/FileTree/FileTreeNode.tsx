@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { FileNode } from '../../types/project';
+import type { FileNode, FolderColor } from '../../types/project';
+import { FOLDER_COLORS } from '../../types/project';
 import { useFileTreeStore, useProjectStore } from '../../store';
 
 // Global drag state (shared across all nodes)
@@ -42,8 +43,9 @@ export function FileTreeNode({
   onDoubleClick,
   onContextMenu,
 }: FileTreeNodeProps) {
-  const { toggleExpanded, moveNode, expandPath } = useFileTreeStore();
+  const { toggleExpanded, moveNode, expandPath, getFolderColor } = useFileTreeStore();
   const { currentProject } = useProjectStore();
+  const folderColor = node.type === 'folder' ? getFolderColor(node.path) : null;
   const [isHovered, setIsHovered] = useState(false);
   const currentDraggedNode = useDraggedNode();
 
@@ -157,14 +159,21 @@ export function FileTreeNode({
     setIsHovered(false);
   };
 
+  // Get the color class for folder icon
+  const getFolderColorClass = (color: FolderColor): string => {
+    const colorConfig = FOLDER_COLORS.find(c => c.id === color);
+    return colorConfig?.textClass || 'text-amber-500';
+  };
+
   const getIcon = () => {
     if (node.type === 'folder') {
+      const colorClass = getFolderColorClass(folderColor);
       return isExpanded ? (
-        <svg className="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 24 24">
+        <svg className={`w-4 h-4 ${colorClass}`} fill="currentColor" viewBox="0 0 24 24">
           <path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z" />
         </svg>
       ) : (
-        <svg className="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 24 24">
+        <svg className={`w-4 h-4 ${colorClass}`} fill="currentColor" viewBox="0 0 24 24">
           <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
         </svg>
       );

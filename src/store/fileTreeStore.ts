@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { FileNode } from '../types/project';
+import type { FileNode, FolderColor, FolderColorsMap } from '../types/project';
 import {
   readDirectoryTree,
   createFolder as fsCreateFolder,
@@ -7,6 +7,8 @@ import {
   deleteFileOrFolder,
   renameFileOrFolder,
   moveFileOrFolder,
+  readFolderColors,
+  writeFolderColors,
 } from '../services/fileSystem';
 
 interface FileTreeStore {
@@ -14,6 +16,8 @@ interface FileTreeStore {
   nodes: FileNode[];
   expandedPaths: Set<string>;
   selectedPath: string | null;
+  folderColors: FolderColorsMap;
+  colorFilter: FolderColor | 'all';
   isLoading: boolean;
   error: string | null;
 
@@ -34,8 +38,15 @@ interface FileTreeStore {
   renameNode: (projectPath: string, absolutePath: string, newName: string) => Promise<void>;
   moveNode: (projectPath: string, sourceAbsolutePath: string, destFolderAbsolutePath: string) => Promise<void>;
 
+  // Folder colors
+  loadFolderColors: (projectPath: string) => Promise<void>;
+  setFolderColor: (projectPath: string, folderPath: string, color: FolderColor) => Promise<void>;
+  getFolderColor: (folderPath: string) => FolderColor;
+  setColorFilter: (color: FolderColor | 'all') => void;
+
   // Helpers
   findNode: (path: string) => FileNode | null;
+  getAllFiles: () => FileNode[];
   clearError: () => void;
 }
 
@@ -65,10 +76,26 @@ function findNodeByPath(nodes: FileNode[], targetPath: string): FileNode | null 
   return null;
 }
 
+// Helper to collect all files recursively
+function collectAllFiles(nodes: FileNode[]): FileNode[] {
+  const files: FileNode[] = [];
+  for (const node of nodes) {
+    if (node.type !== 'folder') {
+      files.push(node);
+    }
+    if (node.children) {
+      files.push(...collectAllFiles(node.children));
+    }
+  }
+  return files;
+}
+
 export const useFileTreeStore = create<FileTreeStore>((set, get) => ({
   nodes: [],
   expandedPaths: new Set<string>(),
   selectedPath: null,
+  folderColors: {},
+  colorFilter: 'all',
   isLoading: false,
   error: null,
 
@@ -214,8 +241,51 @@ export const useFileTreeStore = create<FileTreeStore>((set, get) => ({
     }
   },
 
+  // Folder colors
+  loadFolderColors: async (projectPath) => {
+    try {
+      const colors = await readFolderColors(projectPath);
+      set({ folderColors: colors });
+    } catch (error) {
+      console.error('Failed to load folder colors:', error);
+    }
+  },
+
+  setFolderColor: async (projectPath, folderPath, color) => {
+    const { folderColors } = get();
+    const newColors = { ...folderColors };
+
+    if (color === null) {
+      delete newColors[folderPath];
+    } else {
+      newColors[folderPath] = color;
+    }
+
+    set({ folderColors: newColors });
+
+    try {
+      await writeFolderColors(projectPath, newColors);
+    } catch (error) {
+      // Revert on error
+      set({ folderColors });
+      throw error;
+    }
+  },
+
+  getFolderColor: (folderPath) => {
+    return get().folderColors[folderPath] || null;
+  },
+
+  setColorFilter: (color) => {
+    set({ colorFilter: color });
+  },
+
   findNode: (path) => {
     return findNodeByPath(get().nodes, path);
+  },
+
+  getAllFiles: () => {
+    return collectAllFiles(get().nodes);
   },
 
   clearError: () => set({ error: null }),

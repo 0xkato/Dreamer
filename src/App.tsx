@@ -7,6 +7,7 @@ import { WelcomeScreen } from './components/WelcomeScreen';
 import { MarkdownEditor } from './components/MarkdownEditor';
 import { AppToolbar } from './components/AppToolbar';
 import { CalendarView } from './components/Calendar';
+import { QuickLookup } from './components/QuickLookup';
 import {
   useElementsStore,
   useCanvasStore,
@@ -35,6 +36,9 @@ function App() {
 
   // App view state (notes vs calendar)
   const [currentView, setCurrentView] = useState<AppView>('notes');
+
+  // Quick lookup state (Cmd+P)
+  const [isQuickLookupOpen, setIsQuickLookupOpen] = useState(false);
 
   // Project state
   const { currentProject, initialize: initializeProject } = useProjectStore();
@@ -160,6 +164,13 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
+
+      // Quick lookup (Shift+Tab) - always works, even in inputs
+      if (e.shiftKey && e.key === 'Tab') {
+        e.preventDefault();
+        setIsQuickLookupOpen(true);
+        return;
+      }
 
       // Ignore if typing in an input (but not CodeMirror)
       if (
@@ -416,6 +427,12 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Quick lookup modal */}
+      <QuickLookup
+        isOpen={isQuickLookupOpen}
+        onClose={() => setIsQuickLookupOpen(false)}
+      />
     </div>
   );
 }

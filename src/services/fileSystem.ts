@@ -9,6 +9,7 @@ import {
   DEFAULT_APP_SETTINGS,
 } from '../types/project';
 import type { CalendarData, CalendarEvent } from '../types/calendar';
+import type { FolderColorsMap } from '../types/project';
 
 // API base URL - in production this will be same origin
 const API_BASE = import.meta.env.DEV ? 'http://localhost:3001' : '';
@@ -344,6 +345,36 @@ export function hasLegacyData(): boolean {
 
 export function clearLegacyData(): void {
   // No-op for web version
+}
+
+// ============================================
+// Folder Colors Operations
+// ============================================
+
+export async function readFolderColors(projectPath: string): Promise<FolderColorsMap> {
+  const params = new URLSearchParams({ projectPath });
+  const response = await fetch(`${API_BASE}/api/folder-colors?${params}`);
+
+  if (!response.ok) {
+    return {};
+  }
+
+  return await response.json();
+}
+
+export async function writeFolderColors(
+  projectPath: string,
+  colors: FolderColorsMap
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/folder-colors`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectPath, colors }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to save folder colors');
+  }
 }
 
 // Helper to generate IDs (exposed for components that need it)

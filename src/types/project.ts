@@ -95,6 +95,23 @@ export interface ProjectFile {
   };
 }
 
+// Folder colors
+export type FolderColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | null;
+
+export const FOLDER_COLORS: { id: FolderColor; name: string; bgClass: string; textClass: string }[] = [
+  { id: 'red', name: 'Red', bgClass: 'bg-red-500', textClass: 'text-red-500' },
+  { id: 'orange', name: 'Orange', bgClass: 'bg-orange-500', textClass: 'text-orange-500' },
+  { id: 'yellow', name: 'Yellow', bgClass: 'bg-yellow-500', textClass: 'text-yellow-500' },
+  { id: 'green', name: 'Green', bgClass: 'bg-green-500', textClass: 'text-green-500' },
+  { id: 'blue', name: 'Blue', bgClass: 'bg-blue-500', textClass: 'text-blue-500' },
+  { id: 'purple', name: 'Purple', bgClass: 'bg-purple-500', textClass: 'text-purple-500' },
+];
+
+// Map of folder path to color
+export interface FolderColorsMap {
+  [folderPath: string]: FolderColor;
+}
+
 // Default values
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   recentProjects: [],
