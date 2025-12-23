@@ -10,8 +10,8 @@ export interface CalendarEvent {
 
   // Repeat settings
   repeat: boolean;
-  repeatStartDate?: string; // When the repeat started (YYYY-MM-DD)
-  repeatEnabled?: boolean; // Can be disabled to stop repeat
+  repeatGroupId?: string; // Shared ID for all instances of a repeating event
+  isRepeatInstance?: boolean; // True if this is an auto-generated repeat instance
 }
 
 // Todo item that can be assigned to a work block
@@ -48,59 +48,6 @@ export interface CalendarData {
   weeklyTodos?: WeeklyTodo[]; // New weekly todos
 }
 
-// Helper to check if a repeating event should show on a given date
-export function shouldShowRepeatingEvent(event: CalendarEvent, targetDate: string): boolean {
-  if (!event.repeat || !event.repeatEnabled || !event.repeatStartDate) {
-    return false;
-  }
-
-  const start = new Date(event.repeatStartDate);
-  const target = new Date(targetDate);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // Event must be on or after start date
-  if (target < start) {
-    return false;
-  }
-
-  // Rolling 90-day window from today
-  const windowEnd = new Date(today);
-  windowEnd.setDate(windowEnd.getDate() + 90);
-
-  // Target must be within 90 days from today
-  if (target > windowEnd) {
-    return false;
-  }
-
-  return true;
-}
-
-// Get events for a specific date (including repeating events)
-export function getEventsForDate(allEvents: CalendarEvent[], targetDate: string): CalendarEvent[] {
-  const result: CalendarEvent[] = [];
-
-  for (const event of allEvents) {
-    // Non-repeating event - exact date match
-    if (!event.repeat) {
-      if (event.date === targetDate) {
-        result.push(event);
-      }
-    } else {
-      // Repeating event - check if should show
-      if (shouldShowRepeatingEvent(event, targetDate)) {
-        // Create a copy with the target date
-        result.push({
-          ...event,
-          date: targetDate,
-        });
-      }
-    }
-  }
-
-  return result;
-}
-
 // Format minutes to time string (e.g., 540 -> "9:00 AM")
 export function formatTime(minutes: number): string {
   const hours = Math.floor(minutes / 60);
@@ -121,6 +68,9 @@ export function getTodayString(): string {
   const today = new Date();
   return today.toISOString().split('T')[0];
 }
+
+// Alias for getTodayString
+export const getToday = getTodayString;
 
 // Add days to a date string
 export function addDays(dateStr: string, days: number): string {

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useCalendarStore, useProjectStore } from '../../store';
-import { formatWeek, addDays, getDayName, getFormattedDate } from '../../types/calendar';
+import { formatWeek, addDays, getDayName, getFormattedDate, getToday } from '../../types/calendar';
 import type { WeeklyTodo } from '../../types/calendar';
 
 interface WeeklyTodoPanelProps {
@@ -26,15 +26,37 @@ export function WeeklyTodoPanel({ weekStart, selectedDate, onDragStart }: Weekly
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [unassignedExpanded, setUnassignedExpanded] = useState(true);
-  const [assignedExpanded, setAssignedExpanded] = useState(true);
+  const [pastWorkExpanded, setPastWorkExpanded] = useState(false);
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set());
 
   // Get todos
   const unassignedTodos = getUnassignedWeeklyTodos(weekStart);
   const allWeekTodos = getWeeklyTodosForWeek(weekStart);
-  const assignedTodos = allWeekTodos.filter(t => t.assignedDate !== null);
 
-  // Get week days
+  // Get week days and categorize them
+  const today = getToday();
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  // Separate days into: today, future, past
+  const { todayDate, futureDays, pastDays } = useMemo(() => {
+    const todayDate = weekDays.find(d => d === today) || null;
+    const futureDays = weekDays.filter(d => d > today).sort();
+    const pastDays = weekDays.filter(d => d < today).sort((a, b) => b.localeCompare(a)); // Most recent first
+    return { todayDate, futureDays, pastDays };
+  }, [weekDays, today]);
+
+  // Toggle day collapse
+  const toggleDayCollapsed = (date: string) => {
+    setCollapsedDays(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(date)) {
+        newSet.delete(date);
+      } else {
+        newSet.add(date);
+      }
+      return newSet;
+    });
+  };
 
   const handleAddTodo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -294,49 +316,105 @@ export function WeeklyTodoPanel({ weekStart, selectedDate, onDragStart }: Weekly
           )}
         </div>
 
-        {/* Assigned Section */}
-        <div>
-          <SectionHeader
-            title="Assigned to Days"
-            count={assignedTodos.length}
-            expanded={assignedExpanded}
-            onToggle={() => setAssignedExpanded(!assignedExpanded)}
-            color="indigo"
-          />
+        {/* Day Section Component */}
+        {(() => {
+          const renderDaySection = (date: string, isToday: boolean = false) => {
+            const dayTodos = getWeeklyTodosForDate(date);
+            if (dayTodos.length === 0) return null;
 
-          {assignedExpanded && (
-            <div className="space-y-1 mt-1">
-              {assignedTodos.length > 0 ? (
-                weekDays.map(date => {
-                  const dayTodos = getWeeklyTodosForDate(date);
-                  if (dayTodos.length === 0) return null;
+            const isCollapsed = collapsedDays.has(date);
+            const remainingCount = dayTodos.filter(t => !t.completed).length;
 
-                  return (
-                    <div key={date} className="mb-2">
-                      <div className="flex items-center gap-2 px-2 py-1">
-                        <span className={`text-xs font-medium ${
-                          date === selectedDate ? 'text-indigo-600' : 'text-slate-500'
-                        }`}>
-                          {getDayName(date)}, {getFormattedDate(date)}
-                        </span>
-                        <span className="text-xs text-slate-400">
-                          ({dayTodos.filter(t => !t.completed).length} remaining)
-                        </span>
-                      </div>
-                      <div className="space-y-1 ml-2">
-                        {dayTodos.map(todo => renderTodoItem(todo, true, false))}
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="text-xs text-slate-400 italic py-2 px-2">
-                  Drag tasks to calendar dates to assign them
+            return (
+              <div key={date} className="mb-2">
+                <button
+                  onClick={() => toggleDayCollapsed(date)}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-100 transition-colors ${
+                    isToday ? 'bg-indigo-50' : ''
+                  }`}
+                >
+                  <svg
+                    className={`w-3 h-3 text-slate-400 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className={`text-xs font-medium flex-1 text-left ${
+                    isToday ? 'text-indigo-700' : date === selectedDate ? 'text-indigo-600' : 'text-slate-600'
+                  }`}>
+                    {isToday ? 'Today' : getDayName(date)}, {getFormattedDate(date)}
+                  </span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                    isToday ? 'bg-indigo-200 text-indigo-700' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {remainingCount}
+                  </span>
+                </button>
+                {!isCollapsed && (
+                  <div className="space-y-1 ml-5 mt-1">
+                    {dayTodos.map(todo => renderTodoItem(todo, true, false))}
+                  </div>
+                )}
+              </div>
+            );
+          };
+
+          // Count todos for current/future vs past
+          const todayTodos = todayDate ? getWeeklyTodosForDate(todayDate) : [];
+          const futureTodosCount = futureDays.reduce((acc, d) => acc + getWeeklyTodosForDate(d).length, 0);
+          const pastTodosCount = pastDays.reduce((acc, d) => acc + getWeeklyTodosForDate(d).length, 0);
+          const hasCurrentOrFuture = todayTodos.length > 0 || futureTodosCount > 0;
+
+          return (
+            <>
+              {/* Today */}
+              {todayDate && renderDaySection(todayDate, true)}
+
+              {/* Future days */}
+              {futureDays.map(date => renderDaySection(date))}
+
+              {/* Empty state for current/future */}
+              {!hasCurrentOrFuture && (
+                <p className="text-xs text-slate-400 italic py-3 px-2 text-center">
+                  No tasks assigned yet. Drag tasks to calendar dates.
                 </p>
               )}
-            </div>
-          )}
-        </div>
+
+              {/* Past days - collapsible section */}
+              {pastTodosCount > 0 && (
+                <div className="mt-4 pt-3 border-t border-slate-200">
+                  <button
+                    onClick={() => setPastWorkExpanded(!pastWorkExpanded)}
+                    className="w-full flex items-center justify-between py-2 px-1 hover:bg-slate-100 rounded transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg
+                        className={`w-3 h-3 text-slate-400 transition-transform ${pastWorkExpanded ? 'rotate-90' : ''}`}
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Previous Days
+                      </span>
+                    </div>
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
+                      {pastTodosCount}
+                    </span>
+                  </button>
+
+                  {pastWorkExpanded && (
+                    <div className="mt-1">
+                      {pastDays.map(date => renderDaySection(date))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
     </div>
   );

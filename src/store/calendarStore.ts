@@ -1,11 +1,14 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { CalendarEvent, CalendarTodo, WeeklyTodo } from '../types/calendar';
-import { getTodayString, getEventsForDate } from '../types/calendar';
+import { getTodayString, addDays } from '../types/calendar';
 import {
   readCalendarFile,
   writeCalendarFile,
 } from '../services/fileSystem';
+
+// Number of days to generate for repeating events
+const REPEAT_DAYS = 90;
 
 interface CalendarStore {
   // State
@@ -28,7 +31,10 @@ interface CalendarStore {
   addEvent: (projectPath: string, event: Omit<CalendarEvent, 'id'>) => Promise<void>;
   updateEvent: (projectPath: string, eventId: string, updates: Partial<CalendarEvent>) => Promise<void>;
   deleteEvent: (projectPath: string, eventId: string) => Promise<void>;
-  toggleRepeat: (projectPath: string, eventId: string) => Promise<void>;
+  deleteRepeatGroup: (projectPath: string, repeatGroupId: string) => Promise<void>;
+  enableRepeat: (projectPath: string, eventId: string) => Promise<void>;
+  disableRepeat: (projectPath: string, eventId: string) => Promise<void>;
+  getRepeatGroupCount: (repeatGroupId: string) => number;
 
   // Todo operations (legacy per-day)
   addTodo: (projectPath: string, todo: Omit<CalendarTodo, 'id' | 'createdAt' | 'order'>) => Promise<void>;
@@ -145,23 +151,108 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
     }
   },
 
-  toggleRepeat: async (projectPath, eventId) => {
-    const { events, updateEvent } = get();
+  enableRepeat: async (projectPath, eventId) => {
+    const { events, todos, weeklyTodos } = get();
     const event = events.find(e => e.id === eventId);
 
-    if (!event) return;
+    if (!event || event.repeat) return;
 
-    if (!event.repeat) {
-      await updateEvent(projectPath, eventId, {
+    // Create a repeat group ID
+    const repeatGroupId = uuidv4();
+
+    // Update the original event
+    const updatedEvent: CalendarEvent = {
+      ...event,
+      repeat: true,
+      repeatGroupId,
+      isRepeatInstance: false,
+    };
+
+    // Generate instances for the next REPEAT_DAYS days
+    const today = getTodayString();
+    const startDate = event.date > today ? event.date : today;
+    const newInstances: CalendarEvent[] = [];
+
+    for (let i = 1; i <= REPEAT_DAYS; i++) {
+      const instanceDate = addDays(startDate, i);
+      newInstances.push({
+        ...event,
+        id: uuidv4(),
+        date: instanceDate,
         repeat: true,
-        repeatStartDate: event.date,
-        repeatEnabled: true,
-      });
-    } else {
-      await updateEvent(projectPath, eventId, {
-        repeatEnabled: !event.repeatEnabled,
+        repeatGroupId,
+        isRepeatInstance: true,
       });
     }
+
+    // Replace original and add instances
+    const newEvents = events.map(e => e.id === eventId ? updatedEvent : e);
+    newEvents.push(...newInstances);
+
+    set({ events: newEvents });
+
+    try {
+      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos, weeklyTodos });
+    } catch (error) {
+      set({ events, error: error instanceof Error ? error.message : 'Failed to enable repeat' });
+    }
+  },
+
+  disableRepeat: async (projectPath, eventId) => {
+    const { events, todos, weeklyTodos } = get();
+    const event = events.find(e => e.id === eventId);
+
+    if (!event || !event.repeat || !event.repeatGroupId) return;
+
+    const repeatGroupId = event.repeatGroupId;
+
+    // Remove all instances except the original (the one being clicked)
+    // Also remove repeat flags from the clicked event
+    const newEvents = events
+      .filter(e => e.repeatGroupId !== repeatGroupId || e.id === eventId)
+      .map(e => e.id === eventId ? {
+        ...e,
+        repeat: false,
+        repeatGroupId: undefined,
+        isRepeatInstance: undefined,
+      } : e);
+
+    set({ events: newEvents });
+
+    try {
+      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos, weeklyTodos });
+    } catch (error) {
+      set({ events, error: error instanceof Error ? error.message : 'Failed to disable repeat' });
+    }
+  },
+
+  deleteRepeatGroup: async (projectPath, repeatGroupId) => {
+    const { events, todos, weeklyTodos } = get();
+
+    // Remove all events in the repeat group
+    const newEvents = events.filter(e => e.repeatGroupId !== repeatGroupId);
+
+    // Unassign todos from deleted events
+    const deletedEventIds = events
+      .filter(e => e.repeatGroupId === repeatGroupId)
+      .map(e => e.id);
+
+    const newTodos = todos.map(t =>
+      deletedEventIds.includes(t.workBlockId || '') ? { ...t, workBlockId: undefined } : t
+    );
+
+    set({ events: newEvents, todos: newTodos });
+
+    try {
+      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos: newTodos, weeklyTodos });
+    } catch (error) {
+      set({ events, todos, error: error instanceof Error ? error.message : 'Failed to delete repeat group' });
+    }
+  },
+
+  getRepeatGroupCount: (repeatGroupId) => {
+    const { events } = get();
+    return events.filter(e => e.repeatGroupId === repeatGroupId).length;
   },
 
   // Todo operations (legacy per-day)
@@ -330,7 +421,8 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
   // Helpers
   getEventsForDate: (date) => {
     const { events } = get();
-    return getEventsForDate(events, date);
+    // Simply filter events by date - no more virtual copies
+    return events.filter(e => e.date === date);
   },
 
   getTodosForDate: (date) => {

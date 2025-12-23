@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useCalendarStore, useProjectStore } from '../../store';
 import { getTodayString, addDays, getDayName, getFormattedDate, formatTime, formatWeek } from '../../types/calendar';
 import type { CalendarEvent, WeeklyTodo } from '../../types/calendar';
-import { EventDialog } from './EventDialog';
+import { EventDialog, type DeleteMode } from './EventDialog';
 import { WeeklyTodoPanel } from './WeeklyTodoPanel';
 
 const HOUR_HEIGHT = 60; // pixels per hour
@@ -18,6 +18,24 @@ interface DragState {
   date: string;
 }
 
+interface EventDragState {
+  event: CalendarEvent;
+  dayIndex: number;
+  currentY: number; // Current mouse Y position
+  offsetY: number; // Where on the event the user clicked
+  originalStartTime: number;
+  duration: number;
+  // Calculated values for easy access
+  newStartTime: number;
+  newEndTime: number;
+}
+
+interface PendingMoveState {
+  event: CalendarEvent;
+  newStartTime: number;
+  newEndTime: number;
+}
+
 export function CalendarView() {
   const { currentProject } = useProjectStore();
   const {
@@ -27,6 +45,10 @@ export function CalendarView() {
     addEvent,
     updateEvent,
     deleteEvent,
+    deleteRepeatGroup,
+    enableRepeat,
+    disableRepeat,
+    getRepeatGroupCount,
     getEventsForDate,
     assignWeeklyTodoToDate,
     getWeeklyTodosForDate,
@@ -41,6 +63,10 @@ export function CalendarView() {
   });
 
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const [eventDragState, setEventDragState] = useState<EventDragState | null>(null);
+  const eventDragRef = useRef<EventDragState | null>(null); // Ref to track latest drag state
+  const justFinishedDragging = useRef(false); // Prevent click after drag
+  const [pendingMove, setPendingMove] = useState<PendingMoveState | null>(null);
   const [eventDialog, setEventDialog] = useState<{
     isOpen: boolean;
     date: string;
@@ -169,6 +195,19 @@ export function CalendarView() {
   // Handle event click
   const handleEventClick = (e: React.MouseEvent, event: CalendarEvent) => {
     e.stopPropagation();
+
+    // Don't open dialog if we just finished dragging (click fires after mouseup)
+    if (justFinishedDragging.current) {
+      justFinishedDragging.current = false;
+      return;
+    }
+
+    // Don't open dialog if we're currently dragging
+    if (eventDragState) return;
+
+    // Don't open dialog if there's a pending move confirmation
+    if (pendingMove) return;
+
     setEventDialog({
       isOpen: true,
       date: event.date,
@@ -176,6 +215,160 @@ export function CalendarView() {
       endTime: event.endTime,
       event,
     });
+  };
+
+  // Handle event drag start
+  const handleEventDragStart = (e: React.MouseEvent, event: CalendarEvent, dayIndex: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const rect = gridRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const y = e.clientY - rect.top;
+    const eventTop = timeToY(event.startTime);
+    const offsetY = y - eventTop;
+    const duration = event.endTime - event.startTime;
+
+    const dragData: EventDragState = {
+      event,
+      dayIndex,
+      currentY: y,
+      offsetY,
+      originalStartTime: event.startTime,
+      duration,
+      newStartTime: event.startTime, // Initially same as original
+      newEndTime: event.endTime,
+    };
+
+    setEventDragState(dragData);
+    eventDragRef.current = dragData;
+  };
+
+  // Handle event drag move and end
+  useEffect(() => {
+    if (!eventDragState) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = gridRef.current?.getBoundingClientRect();
+      if (!rect || !eventDragRef.current) return;
+
+      const y = Math.max(0, Math.min(e.clientY - rect.top, TOTAL_HOURS * HOUR_HEIGHT));
+
+      // Calculate the new event position
+      const newEventTop = Math.max(0, y - eventDragRef.current.offsetY);
+      const newStartTime = yToTime(newEventTop);
+      const newEndTime = Math.min(1440, newStartTime + eventDragRef.current.duration);
+
+      // Update ref FIRST (synchronous) so mouseup always has latest values
+      eventDragRef.current = {
+        ...eventDragRef.current,
+        currentY: y,
+        newStartTime,
+        newEndTime,
+      };
+
+      // Then update state for re-render
+      setEventDragState(prev => prev ? {
+        ...prev,
+        currentY: y,
+        newStartTime,
+        newEndTime,
+      } : null);
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      // Use ref for latest values (avoids stale closure)
+      const dragData = eventDragRef.current;
+
+      // Mark that we just finished dragging to prevent click event from firing
+      justFinishedDragging.current = true;
+
+      // Reset the flag after a short delay (after click event would have fired)
+      setTimeout(() => {
+        justFinishedDragging.current = false;
+      }, 100);
+
+      if (!dragData || !currentProject) {
+        setEventDragState(null);
+        eventDragRef.current = null;
+        return;
+      }
+
+      // Calculate final position from mouseup event directly (most accurate)
+      const rect = gridRef.current?.getBoundingClientRect();
+      if (!rect) {
+        setEventDragState(null);
+        eventDragRef.current = null;
+        return;
+      }
+
+      const finalY = Math.max(0, Math.min(e.clientY - rect.top, TOTAL_HOURS * HOUR_HEIGHT));
+      const finalEventTop = Math.max(0, finalY - dragData.offsetY);
+      const finalStartTime = yToTime(finalEventTop);
+      const finalEndTime = Math.min(1440, finalStartTime + dragData.duration);
+
+      // Only show confirmation if the time actually changed
+      if (finalStartTime !== dragData.originalStartTime && finalEndTime <= 1440) {
+        setPendingMove({
+          event: dragData.event,
+          newStartTime: finalStartTime,
+          newEndTime: finalEndTime,
+        });
+      }
+
+      setEventDragState(null);
+      eventDragRef.current = null;
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [eventDragState, currentProject, yToTime]);
+
+  // Handle confirming the move
+  const handleConfirmMove = async (applyToAll: boolean) => {
+    if (!pendingMove || !currentProject) {
+      setPendingMove(null);
+      return;
+    }
+
+    const { event, newStartTime, newEndTime } = pendingMove;
+    const timeDelta = newStartTime - event.startTime;
+
+    if (applyToAll && event.repeatGroupId) {
+      // Update all events in the repeat group
+      const { events } = useCalendarStore.getState();
+      const groupEvents = events.filter(e => e.repeatGroupId === event.repeatGroupId);
+
+      for (const groupEvent of groupEvents) {
+        const newStart = groupEvent.startTime + timeDelta;
+        const newEnd = groupEvent.endTime + timeDelta;
+        // Only update if within valid time range
+        if (newStart >= 0 && newEnd <= 1440) {
+          await updateEvent(currentProject.path, groupEvent.id, {
+            startTime: newStart,
+            endTime: newEnd,
+          });
+        }
+      }
+    } else {
+      // Update just this event
+      await updateEvent(currentProject.path, event.id, {
+        startTime: newStartTime,
+        endTime: newEndTime,
+      });
+    }
+
+    setPendingMove(null);
+  };
+
+  const handleCancelMove = () => {
+    setPendingMove(null);
   };
 
   // Handle day click (for selecting date)
@@ -194,16 +387,24 @@ export function CalendarView() {
     if (!currentProject || !eventDialog) return;
 
     if (eventDialog.event) {
-      // Update existing event
-      await updateEvent(currentProject.path, eventDialog.event.id, {
+      const existingEvent = eventDialog.event;
+
+      // Update basic properties
+      await updateEvent(currentProject.path, existingEvent.id, {
         title: data.title,
         startTime: data.startTime,
         endTime: data.endTime,
-        repeat: data.repeat,
-        repeatStartDate: data.repeat ? eventDialog.date : undefined,
-        repeatEnabled: data.repeat,
         color: data.color,
       });
+
+      // Handle repeat toggle
+      if (data.repeat && !existingEvent.repeat) {
+        // Enabling repeat - expand into instances
+        await enableRepeat(currentProject.path, existingEvent.id);
+      } else if (!data.repeat && existingEvent.repeat) {
+        // Disabling repeat - remove all instances except this one
+        await disableRepeat(currentProject.path, existingEvent.id);
+      }
     } else {
       // Create new event
       await addEvent(currentProject.path, {
@@ -211,20 +412,43 @@ export function CalendarView() {
         date: eventDialog.date,
         startTime: data.startTime,
         endTime: data.endTime,
-        repeat: data.repeat,
-        repeatStartDate: data.repeat ? eventDialog.date : undefined,
-        repeatEnabled: data.repeat,
+        repeat: false, // Start as non-repeating
         color: data.color,
       });
+
+      // If repeat was requested, enable it after creation
+      // Note: We need to get the event ID from the store after creation
+      if (data.repeat) {
+        // The addEvent updated the store, so we need to find the newly created event
+        const events = useCalendarStore.getState().events;
+        const createdEvent = events.find(e =>
+          e.date === eventDialog.date &&
+          e.title === data.title &&
+          e.startTime === data.startTime
+        );
+        if (createdEvent) {
+          await enableRepeat(currentProject.path, createdEvent.id);
+        }
+      }
     }
 
     setEventDialog(null);
   };
 
   // Handle delete event
-  const handleDeleteEvent = async () => {
+  const handleDeleteEvent = async (mode: DeleteMode) => {
     if (!currentProject || !eventDialog?.event) return;
-    await deleteEvent(currentProject.path, eventDialog.event.id);
+
+    const event = eventDialog.event;
+
+    if (mode === 'all' && event.repeatGroupId) {
+      // Delete all occurrences
+      await deleteRepeatGroup(currentProject.path, event.repeatGroupId);
+    } else {
+      // Delete just this occurrence
+      await deleteEvent(currentProject.path, event.id);
+    }
+
     setEventDialog(null);
   };
 
@@ -299,29 +523,50 @@ export function CalendarView() {
 
   // Render event
   const renderEvent = (event: CalendarEvent, dayIndex: number) => {
-    const top = timeToY(event.startTime);
-    const height = Math.max(timeToY(event.endTime) - top, 20);
+    const isDragging = eventDragState?.event.id === event.id;
+
+    // Calculate position - use drag state if dragging, otherwise normal position
+    let top: number;
+    let displayStartTime: number;
+    let displayEndTime: number;
+
+    if (isDragging && eventDragState) {
+      // Use the pre-calculated times from drag state
+      displayStartTime = eventDragState.newStartTime;
+      displayEndTime = eventDragState.newEndTime;
+      top = timeToY(displayStartTime);
+    } else {
+      top = timeToY(event.startTime);
+      displayStartTime = event.startTime;
+      displayEndTime = event.endTime;
+    }
+
+    const height = Math.max(timeToY(displayEndTime) - timeToY(displayStartTime), 20);
     const bgColor = event.color || 'bg-indigo-500';
 
     return (
       <div
         key={`${event.id}-${event.date}`}
-        className={`absolute ${bgColor} text-white rounded px-2 py-1 cursor-pointer hover:opacity-90 overflow-hidden shadow-sm transition-all`}
+        className={`absolute ${bgColor} text-white rounded px-2 py-1 cursor-grab active:cursor-grabbing hover:opacity-90 overflow-hidden shadow-sm ${
+          isDragging ? 'opacity-80 shadow-lg z-30 ring-2 ring-white' : ''
+        }`}
         style={{
           top,
           height,
           left: `calc(${dayIndex * (100 / 7)}% + 2px)`,
           width: `calc(${100 / 7}% - 4px)`,
+          transition: isDragging ? 'none' : 'all 0.15s ease',
         }}
+        onMouseDown={(e) => handleEventDragStart(e, event, dayIndex)}
         onClick={(e) => handleEventClick(e, event)}
       >
         <div className="text-xs font-medium truncate">{event.title}</div>
         {height > 30 && (
           <div className="text-xs opacity-80">
-            {formatTime(event.startTime)} - {formatTime(event.endTime)}
+            {formatTime(displayStartTime)} - {formatTime(displayEndTime)}
           </div>
         )}
-        {event.repeat && event.repeatEnabled && (
+        {event.repeat && (
           <div className="absolute top-1 right-1">
             <svg className="w-3 h-3 opacity-80" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
@@ -495,10 +740,78 @@ export function CalendarView() {
           startTime={eventDialog.startTime}
           endTime={eventDialog.endTime}
           event={eventDialog.event}
+          repeatGroupCount={eventDialog.event?.repeatGroupId ? getRepeatGroupCount(eventDialog.event.repeatGroupId) : 0}
           onSave={handleSaveEvent}
           onDelete={eventDialog.event ? handleDeleteEvent : undefined}
           onClose={() => setEventDialog(null)}
         />
+      )}
+
+      {/* Move confirmation dialog */}
+      {pendingMove && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200">
+              <h2 className="text-lg font-semibold text-slate-800">Move Event</h2>
+            </div>
+            <div className="p-6">
+              <p className="text-slate-600 mb-2">
+                Move <span className="font-medium">{pendingMove.event.title}</span> to:
+              </p>
+              <p className="text-lg font-medium text-indigo-600 mb-4">
+                {formatTime(pendingMove.newStartTime)} - {formatTime(pendingMove.newEndTime)}
+              </p>
+              <p className="text-sm text-slate-500 mb-6">
+                Previously: {formatTime(pendingMove.event.startTime)} - {formatTime(pendingMove.event.endTime)}
+              </p>
+
+              {pendingMove.event.repeat && pendingMove.event.repeatGroupId ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-600 font-medium">
+                    This is a repeating event. Apply change to:
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => handleConfirmMove(false)}
+                      className="w-full px-4 py-3 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-left"
+                    >
+                      <div className="font-medium">This occurrence only</div>
+                      <div className="text-xs text-slate-500">Only change the time for this day</div>
+                    </button>
+                    <button
+                      onClick={() => handleConfirmMove(true)}
+                      className="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-left"
+                    >
+                      <div className="font-medium">All occurrences ({getRepeatGroupCount(pendingMove.event.repeatGroupId!)})</div>
+                      <div className="text-xs text-indigo-200">Change time for all days in this series</div>
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleCancelMove}
+                    className="w-full px-4 py-2 text-slate-500 hover:text-slate-700 transition-colors text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleCancelMove}
+                    className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleConfirmMove(false)}
+                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    Confirm Move
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,5 +1,7 @@
 # Dreamer
 
+> **Warning:** This is a 100% vibecoded app. Use at your own risk.
+
 Notes. Canvas. Calendar. Self-hosted.
 
 ## Run

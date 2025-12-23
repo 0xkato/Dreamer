@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { formatTime, getFormattedDate, getDayName } from '../../types/calendar';
 import type { CalendarEvent } from '../../types/calendar';
 
+export type DeleteMode = 'this' | 'all';
+
 interface EventDialogProps {
   date: string;
   startTime: number;
   endTime: number;
   event?: CalendarEvent;
+  repeatGroupCount?: number; // Number of occurrences in the repeat group
   onSave: (data: {
     title: string;
     startTime: number;
@@ -14,7 +17,7 @@ interface EventDialogProps {
     repeat: boolean;
     color?: string;
   }) => void;
-  onDelete?: () => void;
+  onDelete?: (mode: DeleteMode) => void;
   onClose: () => void;
 }
 
@@ -34,6 +37,7 @@ export function EventDialog({
   startTime,
   endTime,
   event,
+  repeatGroupCount = 0,
   onSave,
   onDelete,
   onClose,
@@ -43,6 +47,9 @@ export function EventDialog({
   const [end, setEnd] = useState(endTime);
   const [repeat, setRepeat] = useState(event?.repeat || false);
   const [color, setColor] = useState(event?.color || 'bg-indigo-500');
+  const [showDeleteOptions, setShowDeleteOptions] = useState(false);
+
+  const isRepeatingEvent = event?.repeat && event?.repeatGroupId;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,13 +190,54 @@ export function EventDialog({
           {/* Footer */}
           <div className="px-6 py-4 border-t border-slate-200 flex gap-3">
             {onDelete && (
-              <button
-                type="button"
-                onClick={onDelete}
-                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                Delete
-              </button>
+              <div className="relative">
+                {isRepeatingEvent ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteOptions(!showDeleteOptions)}
+                      className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1"
+                    >
+                      Delete
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {showDeleteOptions && (
+                      <div className="absolute bottom-full left-0 mb-1 bg-white rounded-lg shadow-xl border border-slate-200 py-1 min-w-[200px] z-10">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onDelete('this');
+                            setShowDeleteOptions(false);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                        >
+                          Delete this occurrence
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onDelete('all');
+                            setShowDeleteOptions(false);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          Delete all occurrences ({repeatGroupCount})
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onDelete('this')}
+                    className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
             )}
             <div className="flex-1" />
             <button
