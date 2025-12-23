@@ -21,6 +21,7 @@ interface DragState {
 interface EventDragState {
   event: CalendarEvent;
   dayIndex: number;
+  initialY: number; // Where the drag started
   currentY: number; // Current mouse Y position
   offsetY: number; // Where on the event the user clicked
   originalStartTime: number;
@@ -28,7 +29,10 @@ interface EventDragState {
   // Calculated values for easy access
   newStartTime: number;
   newEndTime: number;
+  hasMoved: boolean; // True if mouse moved beyond threshold
 }
+
+const MIN_DRAG_DISTANCE = 10; // Minimum pixels to move before it's considered a drag
 
 interface PendingMoveState {
   event: CalendarEvent;
@@ -233,12 +237,14 @@ export function CalendarView() {
     const dragData: EventDragState = {
       event,
       dayIndex,
+      initialY: y, // Track where drag started
       currentY: y,
       offsetY,
       originalStartTime: event.startTime,
       duration,
       newStartTime: event.startTime, // Initially same as original
       newEndTime: event.endTime,
+      hasMoved: false, // Haven't moved beyond threshold yet
     };
 
     setEventDragState(dragData);
@@ -255,6 +261,10 @@ export function CalendarView() {
 
       const y = Math.max(0, Math.min(e.clientY - rect.top, TOTAL_HOURS * HOUR_HEIGHT));
 
+      // Check if movement exceeds threshold
+      const distanceMoved = Math.abs(y - eventDragRef.current.initialY);
+      const hasMoved = eventDragRef.current.hasMoved || distanceMoved >= MIN_DRAG_DISTANCE;
+
       // Calculate the new event position
       const newEventTop = Math.max(0, y - eventDragRef.current.offsetY);
       const newStartTime = yToTime(newEventTop);
@@ -266,6 +276,7 @@ export function CalendarView() {
         currentY: y,
         newStartTime,
         newEndTime,
+        hasMoved,
       };
 
       // Then update state for re-render
@@ -274,12 +285,35 @@ export function CalendarView() {
         currentY: y,
         newStartTime,
         newEndTime,
+        hasMoved,
       } : null);
     };
 
     const handleMouseUp = (e: MouseEvent) => {
       // Use ref for latest values (avoids stale closure)
       const dragData = eventDragRef.current;
+
+      if (!dragData || !currentProject) {
+        setEventDragState(null);
+        eventDragRef.current = null;
+        return;
+      }
+
+      // Check if this was just a click (no significant movement)
+      if (!dragData.hasMoved) {
+        // It was just a click - open edit dialog
+        setEventDragState(null);
+        eventDragRef.current = null;
+
+        setEventDialog({
+          isOpen: true,
+          date: dragData.event.date,
+          startTime: dragData.event.startTime,
+          endTime: dragData.event.endTime,
+          event: dragData.event,
+        });
+        return;
+      }
 
       // Mark that we just finished dragging to prevent click event from firing
       justFinishedDragging.current = true;
@@ -288,12 +322,6 @@ export function CalendarView() {
       setTimeout(() => {
         justFinishedDragging.current = false;
       }, 100);
-
-      if (!dragData || !currentProject) {
-        setEventDragState(null);
-        eventDragRef.current = null;
-        return;
-      }
 
       // Calculate final position from mouseup event directly (most accurate)
       const rect = gridRef.current?.getBoundingClientRect();
