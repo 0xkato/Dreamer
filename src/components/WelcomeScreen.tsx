@@ -1,20 +1,13 @@
 import { useState } from 'react';
 import { useProjectStore } from '../store';
 import { ProjectSelector } from './ProjectSelector';
-import { hasLegacyData, clearLegacyData } from '../services/fileSystem';
 
 export function WelcomeScreen() {
   const [showProjectSelector, setShowProjectSelector] = useState(false);
   const [selectorMode, setSelectorMode] = useState<'create' | 'open'>('create');
-  const [showLegacyNotice, setShowLegacyNotice] = useState(hasLegacyData());
 
   const { settings, openRecentProject, isLoading, error, clearError } = useProjectStore();
   const recentProjects = settings.recentProjects;
-
-  const handleDismissLegacy = () => {
-    clearLegacyData();
-    setShowLegacyNotice(false);
-  };
 
   const handleCreate = () => {
     setSelectorMode('create');
@@ -53,32 +46,6 @@ export function WelcomeScreen() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-          </div>
-        )}
-
-        {/* Legacy data notice */}
-        {showLegacyNotice && (
-          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div className="flex-1">
-                <p className="text-amber-800 text-sm font-medium">Existing diagrams detected</p>
-                <p className="text-amber-700 text-sm mt-1">
-                  You have diagrams from a previous version. Create a new project and they'll be migrated automatically.
-                </p>
-              </div>
-              <button
-                onClick={handleDismissLegacy}
-                className="text-amber-600 hover:text-amber-800 p-1"
-                title="Dismiss and clear old data"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
           </div>
         )}
 

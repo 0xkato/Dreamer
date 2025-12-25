@@ -10,7 +10,6 @@ import type {
   Point,
   AnchorPosition,
   HistoryEntry,
-  DiagramFile,
 } from '../types';
 import {
   DEFAULT_SHAPE_STYLE as defaultShapeStyle,
@@ -18,8 +17,6 @@ import {
   DEFAULT_CONNECTOR_STYLE as defaultConnectorStyle,
   DEFAULT_DRAWING_STYLE as defaultDrawingStyle,
 } from '../types';
-import { saveDiagram } from '../utils/storage';
-import { useCanvasStore } from './canvasStore';
 
 interface ElementsStore {
   // Elements
@@ -451,24 +448,6 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
         historyIndex: newHistory.length - 1,
       };
     });
-
-    // Auto-save to current diagram
-    const { currentDiagramId, currentDiagramName, elements, connectors } = get();
-    if (currentDiagramId && currentDiagramName) {
-      const viewport = useCanvasStore.getState().viewport;
-      const diagram: DiagramFile = {
-        version: '1.0.0',
-        metadata: {
-          name: currentDiagramName,
-          created: new Date().toISOString(),
-          modified: new Date().toISOString(),
-        },
-        viewport,
-        elements,
-        connectors,
-      };
-      saveDiagram(currentDiagramName, diagram);
-    }
   },
 
   undo: () => {
@@ -484,24 +463,6 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
       historyIndex: newIndex,
       selectedIds: [],
     });
-
-    // Auto-save after undo
-    const { currentDiagramId, currentDiagramName } = get();
-    if (currentDiagramId && currentDiagramName) {
-      const viewport = useCanvasStore.getState().viewport;
-      const diagram: DiagramFile = {
-        version: '1.0.0',
-        metadata: {
-          name: currentDiagramName,
-          created: new Date().toISOString(),
-          modified: new Date().toISOString(),
-        },
-        viewport,
-        elements: entry.elements,
-        connectors: entry.connectors,
-      };
-      saveDiagram(currentDiagramName, diagram);
-    }
   },
 
   redo: () => {
@@ -517,24 +478,6 @@ export const useElementsStore = create<ElementsStore>((set, get) => ({
       historyIndex: newIndex,
       selectedIds: [],
     });
-
-    // Auto-save after redo
-    const { currentDiagramId, currentDiagramName } = get();
-    if (currentDiagramId && currentDiagramName) {
-      const viewport = useCanvasStore.getState().viewport;
-      const diagram: DiagramFile = {
-        version: '1.0.0',
-        metadata: {
-          name: currentDiagramName,
-          created: new Date().toISOString(),
-          modified: new Date().toISOString(),
-        },
-        viewport,
-        elements: entry.elements,
-        connectors: entry.connectors,
-      };
-      saveDiagram(currentDiagramName, diagram);
-    }
   },
 
   // Clipboard

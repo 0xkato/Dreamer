@@ -83,17 +83,6 @@ export async function openProject(folderPath: string): Promise<Project> {
   return await response.json();
 }
 
-// These are no longer needed for web version - projects are stored in server's projects directory
-export async function selectProjectFolder(): Promise<string | null> {
-  // In web version, we list available projects instead of selecting folders
-  return null;
-}
-
-export async function selectParentFolder(): Promise<string | null> {
-  // In web version, projects are created in a fixed location on the server
-  return '';
-}
-
 // ============================================
 // File Tree Operations
 // ============================================
@@ -326,25 +315,6 @@ export async function deleteCalendarEvent(
   const data = await readCalendarFile(projectPath);
   data.events = data.events.filter(e => e.id !== eventId);
   await writeCalendarFile(projectPath, data);
-}
-
-// ============================================
-// Migration (not applicable for web version)
-// ============================================
-
-export async function migrateFromLocalStorage(
-  _targetProjectPath: string
-): Promise<number> {
-  // No migration needed for web version
-  return 0;
-}
-
-export function hasLegacyData(): boolean {
-  return false;
-}
-
-export function clearLegacyData(): void {
-  // No-op for web version
 }
 
 // ============================================
