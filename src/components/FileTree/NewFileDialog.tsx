@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { useFileTreeStore, useEditorStore, useProjectStore } from '../../store';
+import { useFileTreeStore, useEditorStore, useProjectStore, useTemplateStore } from '../../store';
+import { getTemplateContent } from '../../services/templateService';
+import type { Template } from '../../services/templateService';
 
 interface NewFileDialogProps {
   type: 'markdown' | 'canvas' | 'folder';
@@ -12,11 +14,20 @@ export function NewFileDialog({ type, parentPath, onClose, projectPath }: NewFil
   const [name, setName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { createFolder, createFile } = useFileTreeStore();
   const { openFile } = useEditorStore();
   const { currentProject } = useProjectStore();
+  const { templates, fetchTemplates } = useTemplateStore();
+
+  // Load templates on mount for markdown files
+  useEffect(() => {
+    if (type === 'markdown') {
+      fetchTemplates(projectPath);
+    }
+  }, [type, projectPath, fetchTemplates]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -38,6 +49,11 @@ export function NewFileDialog({ type, parentPath, onClose, projectPath }: NewFil
     }
   };
 
+  // Filter templates to show only "new file" templates (not snippets)
+  const fileTemplates = templates.filter((t) => t.type === 'template');
+  const projectTemplates = fileTemplates.filter((t) => t.location === 'project');
+  const globalTemplates = fileTemplates.filter((t) => t.location === 'global');
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || isCreating) return;
@@ -54,6 +70,15 @@ export function NewFileDialog({ type, parentPath, onClose, projectPath }: NewFil
         // Open the newly created file
         if (createdPath && currentProject) {
           await openFile(currentProject.path, createdPath, type);
+
+          // If a template was selected, apply it (for markdown only)
+          if (type === 'markdown' && selectedTemplate) {
+            const templateContent = getTemplateContent(selectedTemplate, name.trim());
+            // The file was just opened, so we need to update the content
+            // This will be done through the editor store
+            const { updateMarkdownContent } = useEditorStore.getState();
+            updateMarkdownContent(createdPath, templateContent);
+          }
         }
       }
       onClose();
@@ -92,6 +117,95 @@ export function NewFileDialog({ type, parentPath, onClose, projectPath }: NewFil
               <p className="mt-2 text-xs text-slate-400">
                 Location: /{parentPath}/
               </p>
+            )}
+
+            {/* Template picker for markdown files */}
+            {type === 'markdown' && (
+              <div className="mt-4">
+                <label className="block text-xs font-medium text-slate-500 mb-2">
+                  Template
+                </label>
+                <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg">
+                  {/* Blank option */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTemplate(null)}
+                    className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${
+                      selectedTemplate === null
+                        ? 'bg-indigo-50 text-indigo-700'
+                        : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-slate-400">📄</span>
+                    <span>Blank</span>
+                  </button>
+
+                  {/* Project templates */}
+                  {projectTemplates.length > 0 && (
+                    <>
+                      <div className="px-3 py-1 text-xs font-medium text-slate-400 bg-slate-50 border-t border-slate-200">
+                        Project
+                      </div>
+                      {projectTemplates.map((template) => (
+                        <button
+                          key={template.id}
+                          type="button"
+                          onClick={() => setSelectedTemplate(template)}
+                          className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${
+                            selectedTemplate?.id === template.id
+                              ? 'bg-indigo-50 text-indigo-700'
+                              : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="text-slate-400">📋</span>
+                          <span>{template.name}</span>
+                          {template.category && (
+                            <span className="ml-auto text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                              {template.category}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Global templates */}
+                  {globalTemplates.length > 0 && (
+                    <>
+                      <div className="px-3 py-1 text-xs font-medium text-slate-400 bg-slate-50 border-t border-slate-200">
+                        Global
+                      </div>
+                      {globalTemplates.map((template) => (
+                        <button
+                          key={template.id}
+                          type="button"
+                          onClick={() => setSelectedTemplate(template)}
+                          className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${
+                            selectedTemplate?.id === template.id
+                              ? 'bg-indigo-50 text-indigo-700'
+                              : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="text-slate-400">📋</span>
+                          <span>{template.name}</span>
+                          {template.category && (
+                            <span className="ml-auto text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                              {template.category}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {/* No templates hint */}
+                  {fileTemplates.length === 0 && (
+                    <p className="px-3 py-2 text-xs text-slate-400 border-t border-slate-200">
+                      Save any file as a template to see it here.
+                    </p>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 

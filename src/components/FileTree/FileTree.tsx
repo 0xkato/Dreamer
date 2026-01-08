@@ -3,8 +3,10 @@ import { useProjectStore, useFileTreeStore, useEditorStore } from '../../store';
 import { FileTreeNode } from './FileTreeNode';
 import { FileTreeContextMenu, type ContextMenuState } from './FileTreeContextMenu';
 import { NewFileDialog } from './NewFileDialog';
+import { SaveAsTemplateDialog } from './SaveAsTemplateDialog';
 import { FOLDER_COLORS } from '../../types/project';
 import type { FileNode, FolderColor } from '../../types/project';
+import { readMarkdownFile } from '../../services/fileSystem';
 
 export function FileTree() {
   const { currentProject } = useProjectStore();
@@ -33,6 +35,13 @@ export function FileTree() {
     absolutePath: string;
     currentName: string;
     newName: string;
+  } | null>(null);
+
+  // Save as template dialog state
+  const [saveAsTemplateDialog, setSaveAsTemplateDialog] = useState<{
+    isOpen: boolean;
+    fileName: string;
+    content: string;
   } | null>(null);
 
   // Load file tree and folder colors when project changes
@@ -156,6 +165,20 @@ export function FileTree() {
 
   const handleFileSelect = (path: string) => {
     setSelectedPath(path);
+  };
+
+  // Save as template handler
+  const handleSaveAsTemplate = async (_nodePath: string, absolutePath: string, fileName: string) => {
+    try {
+      const content = await readMarkdownFile(absolutePath);
+      setSaveAsTemplateDialog({
+        isOpen: true,
+        fileName,
+        content,
+      });
+    } catch (error) {
+      console.error('Failed to read file for template:', error);
+    }
   };
 
   // Filter nodes by color - shows folders with the selected color and all their contents
@@ -328,6 +351,7 @@ export function FileTree() {
           onClose={handleCloseContextMenu}
           onNewFile={handleNewFile}
           onRename={handleRename}
+          onSaveAsTemplate={handleSaveAsTemplate}
           projectPath={currentProject.path}
         />
       )}
@@ -416,6 +440,15 @@ export function FileTree() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Save as template dialog */}
+      {saveAsTemplateDialog?.isOpen && (
+        <SaveAsTemplateDialog
+          fileName={saveAsTemplateDialog.fileName}
+          content={saveAsTemplateDialog.content}
+          onClose={() => setSaveAsTemplateDialog(null)}
+        />
       )}
     </div>
   );

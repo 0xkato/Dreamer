@@ -589,6 +589,81 @@ app.post('/api/folder-colors', async (req, res) => {
 });
 
 // ============================================
+// Templates Endpoints
+// ============================================
+
+const TEMPLATES_DIR = path.join(DATA_DIR, 'templates');
+
+// Ensure templates directory exists
+await fs.mkdir(TEMPLATES_DIR, { recursive: true });
+
+// Read templates from a directory
+app.get('/api/templates', async (req, res) => {
+  try {
+    const { path: templatePath } = req.query;
+
+    // Determine actual path - 'global' means app-wide templates
+    let actualPath;
+    if (templatePath === 'global') {
+      actualPath = TEMPLATES_DIR;
+    } else {
+      actualPath = templatePath;
+    }
+
+    // Ensure directory exists
+    try {
+      await fs.access(actualPath);
+    } catch {
+      // Directory doesn't exist, return empty array
+      return res.json([]);
+    }
+
+    const entries = await fs.readdir(actualPath, { withFileTypes: true });
+    const templates = [];
+
+    for (const entry of entries) {
+      if (entry.isFile() && entry.name.endsWith('.md')) {
+        const filePath = path.join(actualPath, entry.name);
+        const content = await fs.readFile(filePath, 'utf-8');
+        templates.push({
+          name: entry.name,
+          content,
+        });
+      }
+    }
+
+    res.json(templates);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Save a template
+app.post('/api/templates', async (req, res) => {
+  try {
+    const { path: templatePath, fileName, content } = req.body;
+
+    // Determine actual path - 'global' means app-wide templates
+    let actualPath;
+    if (templatePath === 'global') {
+      actualPath = TEMPLATES_DIR;
+    } else {
+      actualPath = templatePath;
+    }
+
+    // Ensure directory exists
+    await fs.mkdir(actualPath, { recursive: true });
+
+    const filePath = path.join(actualPath, fileName);
+    await fs.writeFile(filePath, content);
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // Dialog Endpoints (for file/folder selection UI)
 // ============================================
 
