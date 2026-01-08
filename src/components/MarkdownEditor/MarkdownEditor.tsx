@@ -5,6 +5,7 @@ import { markdown } from '@codemirror/lang-markdown';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { MarkdownToolbar } from './MarkdownToolbar';
 import { MarkdownPreview } from './MarkdownPreview';
+import { SlashCommandMenu } from './SlashCommandMenu';
 import type { OpenFile, MarkdownContent } from '../../types/project';
 
 interface MarkdownEditorProps {
@@ -13,17 +14,91 @@ interface MarkdownEditorProps {
   onSave: () => void;
 }
 
+interface SlashMenuState {
+  open: boolean;
+  position: { x: number; y: number };
+  filter: string;
+  slashPos: number; // Position of the `/` in the document
+}
+
 export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [slashMenu, setSlashMenu] = useState<SlashMenuState>({
+    open: false,
+    position: { x: 0, y: 0 },
+    filter: '',
+    slashPos: 0,
+  });
 
   const content = (file.content as MarkdownContent).text;
 
-  // Handle content changes
-  const handleChange = useCallback((text: string) => {
+  // Get cursor screen position
+  const getCursorPosition = useCallback(() => {
+    const view = viewRef.current;
+    if (!view) return { x: 0, y: 0 };
+
+    const pos = view.state.selection.main.head;
+    const coords = view.coordsAtPos(pos);
+    if (!coords) return { x: 0, y: 0 };
+
+    return { x: coords.left, y: coords.bottom + 4 };
+  }, []);
+
+  // Handle content changes and slash command detection
+  const handleChange = useCallback((text: string, view: EditorView) => {
     onContentChange(text);
-  }, [onContentChange]);
+
+    // Check for slash command
+    const pos = view.state.selection.main.head;
+    const lineStart = view.state.doc.lineAt(pos).from;
+    const textBeforeCursor = text.slice(lineStart, pos);
+
+    // Look for `/` followed by optional filter text
+    const slashMatch = textBeforeCursor.match(/\/([a-zA-Z]*)$/);
+
+    if (slashMatch) {
+      const slashPos = lineStart + textBeforeCursor.lastIndexOf('/');
+      const filter = slashMatch[1] || '';
+      const coords = getCursorPosition();
+
+      setSlashMenu({
+        open: true,
+        position: coords,
+        filter,
+        slashPos,
+      });
+    } else if (slashMenu.open) {
+      setSlashMenu((prev) => ({ ...prev, open: false }));
+    }
+  }, [onContentChange, getCursorPosition, slashMenu.open]);
+
+  // Handle slash menu selection
+  const handleSlashSelect = useCallback((insertText: string) => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    // Replace from slash position to current cursor
+    const cursorPos = view.state.selection.main.head;
+
+    view.dispatch({
+      changes: {
+        from: slashMenu.slashPos,
+        to: cursorPos,
+        insert: insertText,
+      },
+    });
+
+    setSlashMenu((prev) => ({ ...prev, open: false }));
+    view.focus();
+  }, [slashMenu.slashPos]);
+
+  // Close slash menu
+  const closeSlashMenu = useCallback(() => {
+    setSlashMenu((prev) => ({ ...prev, open: false }));
+    viewRef.current?.focus();
+  }, []);
 
   // Initialize editor
   useEffect(() => {
@@ -81,8 +156,8 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
         placeholder('Start writing...'),
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            handleChange(update.state.doc.toString());
+          if (update.docChanged || update.selectionSet) {
+            handleChange(update.state.doc.toString(), update.view);
           }
         }),
       ],
@@ -138,6 +213,41 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
       },
     });
     view.focus();
+  };
+
+  // Insert symbol at cursor
+  const handleInsertSymbol = (symbol: string) => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    const pos = view.state.selection.main.head;
+    view.dispatch({
+      changes: { from: pos, to: pos, insert: symbol },
+      selection: { anchor: pos + symbol.length },
+    });
+    view.focus();
+  };
+
+  // Open symbol menu from toolbar
+  const handleOpenSymbolMenu = () => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    const pos = view.state.selection.main.head;
+    const coords = getCursorPosition();
+
+    // Insert a `/` to trigger the menu
+    view.dispatch({
+      changes: { from: pos, to: pos, insert: '/' },
+      selection: { anchor: pos + 1 },
+    });
+
+    setSlashMenu({
+      open: true,
+      position: coords,
+      filter: '',
+      slashPos: pos,
+    });
   };
 
   const handleBold = () => insertText('**', '**');
@@ -231,13 +341,15 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
         onCodeBlock={handleCodeBlock}
         onQuote={handleQuote}
         onTogglePreview={() => setShowPreview(!showPreview)}
+        onInsertSymbol={handleInsertSymbol}
+        onOpenSymbolMenu={handleOpenSymbolMenu}
         showPreview={showPreview}
         isDirty={file.isDirty}
         fileName={file.name}
       />
 
       {/* Editor / Preview */}
-      <div className="flex-1 overflow-hidden flex">
+      <div className="flex-1 overflow-hidden flex relative">
         {/* Editor */}
         <div
           ref={editorRef}
@@ -249,6 +361,16 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
           <div className="w-1/2 h-full overflow-auto">
             <MarkdownPreview content={content} />
           </div>
+        )}
+
+        {/* Slash command menu */}
+        {slashMenu.open && (
+          <SlashCommandMenu
+            position={slashMenu.position}
+            filter={slashMenu.filter}
+            onSelect={handleSlashSelect}
+            onClose={closeSlashMenu}
+          />
         )}
       </div>
     </div>

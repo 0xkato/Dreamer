@@ -10,6 +10,8 @@ interface MarkdownToolbarProps {
   onCodeBlock: () => void;
   onQuote: () => void;
   onTogglePreview: () => void;
+  onInsertSymbol: (symbol: string) => void;
+  onOpenSymbolMenu: () => void;
   showPreview: boolean;
   isDirty: boolean;
   fileName: string;
@@ -27,6 +29,8 @@ export function MarkdownToolbar({
   onCodeBlock,
   onQuote,
   onTogglePreview,
+  onInsertSymbol,
+  onOpenSymbolMenu,
   showPreview,
   isDirty,
   fileName,
@@ -128,6 +132,45 @@ export function MarkdownToolbar({
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
         </svg>
+      </button>
+
+      <div className="h-5 w-px bg-slate-300 mx-1" />
+
+      {/* Symbol buttons */}
+      <button
+        onClick={() => onInsertSymbol('✓')}
+        className="toolbar-btn"
+        title="Checkmark - type /check"
+      >
+        <span className="text-sm">✓</span>
+      </button>
+      <button
+        onClick={() => onInsertSymbol('✗')}
+        className="toolbar-btn"
+        title="X mark - type /x"
+      >
+        <span className="text-sm">✗</span>
+      </button>
+      <button
+        onClick={() => onInsertSymbol('⚠')}
+        className="toolbar-btn"
+        title="Warning - type /warning"
+      >
+        <span className="text-sm">⚠</span>
+      </button>
+      <button
+        onClick={() => onInsertSymbol('→')}
+        className="toolbar-btn"
+        title="Arrow - type /arrow"
+      >
+        <span className="text-sm">→</span>
+      </button>
+      <button
+        onClick={onOpenSymbolMenu}
+        className="toolbar-btn"
+        title="More symbols - type /"
+      >
+        <span className="text-sm">⋯</span>
       </button>
 
       {/* Spacer */}
