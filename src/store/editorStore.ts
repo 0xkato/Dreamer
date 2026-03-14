@@ -73,10 +73,16 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setActiveFile: (path) => set({ activeFilePath: path }),
 
   openFile: async (projectPath, relativePath, type) => {
-    const { activeFilePath } = get();
+    const { activeFilePath, openFiles } = get();
 
     // Check if already open and active
     if (activeFilePath === relativePath) {
+      return;
+    }
+
+    // If the file is already open but not active, just switch to it
+    if (openFiles.has(relativePath)) {
+      set({ activeFilePath: relativePath });
       return;
     }
 
@@ -110,8 +116,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         content,
       };
 
-      // Single-file mode: replace all open files with just this one
-      const newOpenFiles = new Map<string, OpenFile>();
+      // Multi-file mode: add to existing open files
+      const newOpenFiles = new Map(openFiles);
       newOpenFiles.set(relativePath, openFile);
 
       set({

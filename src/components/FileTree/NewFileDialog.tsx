@@ -90,10 +90,10 @@ export function NewFileDialog({ type, parentPath, onClose, projectPath }: NewFil
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4">
+      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-sm mx-4">
         <form onSubmit={handleSubmit}>
-          <div className="px-4 py-3 border-b border-slate-200">
-            <h3 className="text-sm font-medium text-slate-800">{getTitle()}</h3>
+          <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+            <h3 className="text-sm font-medium text-slate-800 dark:text-slate-200">{getTitle()}</h3>
           </div>
 
           <div className="p-4">
@@ -109,7 +109,7 @@ export function NewFileDialog({ type, parentPath, onClose, projectPath }: NewFil
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={getPlaceholder()}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
               disabled={isCreating}
             />
 
@@ -209,7 +209,7 @@ export function NewFileDialog({ type, parentPath, onClose, projectPath }: NewFil
             )}
           </div>
 
-          <div className="px-4 py-3 border-t border-slate-200 flex justify-end gap-2">
+          <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}

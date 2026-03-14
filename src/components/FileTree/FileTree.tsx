@@ -9,7 +9,7 @@ import type { FileNode, FolderColor } from '../../types/project';
 import { readMarkdownFile } from '../../services/fileSystem';
 
 export function FileTree() {
-  const { currentProject } = useProjectStore();
+  const { currentProject, settings } = useProjectStore();
   const { nodes, isLoading, error, refreshTree, expandedPaths, selectedPath, setSelectedPath, renameNode, loadFolderColors, colorFilter, setColorFilter, getFolderColor } = useFileTreeStore();
   const { openFile, activeFilePath, openFiles, saveFile, updateFilePath } = useEditorStore();
 
@@ -209,22 +209,38 @@ export function FileTree() {
 
   const filteredNodes = filterNodesByColor(nodes, colorFilter);
 
+  // Find bookmarked file nodes from the tree
+  const findNodeByPath = (nodeList: FileNode[], targetPath: string): FileNode | null => {
+    for (const node of nodeList) {
+      if (node.path === targetPath) return node;
+      if (node.children) {
+        const found = findNodeByPath(node.children, targetPath);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const bookmarkedNodes = (settings.bookmarks || [])
+    .map((path) => findNodeByPath(nodes, path))
+    .filter((node): node is FileNode => node !== null && node.type !== 'folder');
+
   if (!currentProject) {
     return null;
   }
 
   return (
     <div
-      className="h-full flex flex-col bg-slate-50 border-r border-slate-200"
+      className="h-full flex flex-col bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700"
       onContextMenu={(e) => handleContextMenu(e, null, 'root')}
     >
       {/* Header */}
-      <div className="px-3 py-2 border-b border-slate-200 flex items-center justify-between bg-white">
+      <div className="px-3 py-2 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-white dark:bg-slate-800">
         <div className="flex items-center gap-2 min-w-0">
           <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
           </svg>
-          <span className="text-sm font-medium text-slate-700 truncate">
+          <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
             {currentProject.name}
           </span>
         </div>
@@ -260,7 +276,7 @@ export function FileTree() {
       </div>
 
       {/* Color filter bar */}
-      <div className="px-2 py-1.5 border-b border-slate-200 bg-white flex items-center gap-1">
+      <div className="px-2 py-1.5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center gap-1">
         <span className="text-xs text-slate-500 mr-1">Filter:</span>
         <button
           onClick={() => setColorFilter('all')}
@@ -327,6 +343,38 @@ export function FileTree() {
           </div>
         ) : (
           <div className="px-1">
+            {/* Bookmarks section */}
+            {bookmarkedNodes.length > 0 && (
+              <>
+                <div className="px-2 pt-1 pb-0.5">
+                  <span className="text-xs uppercase text-slate-400 font-medium tracking-wider">
+                    Bookmarks
+                  </span>
+                </div>
+                {bookmarkedNodes.map((node) => (
+                  <div
+                    key={`bookmark-${node.id}`}
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer text-sm group ${
+                      activeFilePath === node.path
+                        ? 'bg-indigo-50 text-indigo-700'
+                        : selectedPath === node.path
+                        ? 'bg-slate-200 text-slate-800'
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                    onClick={() => handleFileSelect(node.path)}
+                    onDoubleClick={() => handleFileDoubleClick(node.path, node.type as 'markdown' | 'canvas')}
+                    onContextMenu={(e) => handleContextMenu(e, node.path, node.type as 'folder' | 'markdown' | 'canvas' | 'root')}
+                  >
+                    <svg className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                    <span className="truncate">{node.name}</span>
+                  </div>
+                ))}
+                <div className="my-1 mx-2 border-t border-slate-200" />
+              </>
+            )}
+
             {filteredNodes.map((node) => (
               <FileTreeNode
                 key={node.id}
@@ -369,9 +417,9 @@ export function FileTree() {
       {/* Unsaved changes dialog */}
       {unsavedDialog?.isOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200">
-              <h2 className="text-lg font-semibold text-slate-800">Unsaved Changes</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Unsaved Changes</h2>
             </div>
             <div className="p-6">
               <p className="text-slate-600 mb-6">
@@ -406,9 +454,9 @@ export function FileTree() {
       {/* Rename dialog */}
       {renameDialog?.isOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200">
-              <h2 className="text-lg font-semibold text-slate-800">Rename</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Rename</h2>
             </div>
             <div className="p-6">
               <input
@@ -419,7 +467,7 @@ export function FileTree() {
                   if (e.key === 'Enter') handleRenameSubmit();
                   if (e.key === 'Escape') setRenameDialog(null);
                 }}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-4"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-4"
                 autoFocus
               />
               <div className="flex gap-3">

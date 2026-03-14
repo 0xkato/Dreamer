@@ -65,10 +65,11 @@ export interface OpenFile {
 export interface AppSettings {
   recentProjects: Project[];
   lastOpenedProjectPath: string | null;
-  theme: 'light' | 'dark' | 'system';
+  theme: 'light' | 'dark';
   editorFontSize: number;
   autoSaveEnabled: boolean;
   autoSaveInterval: number; // milliseconds
+  bookmarks: string[]; // Relative file paths pinned to top of file tree
 }
 
 // File format for .canvas files
@@ -116,10 +117,11 @@ export interface FolderColorsMap {
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   recentProjects: [],
   lastOpenedProjectPath: null,
-  theme: 'system',
+  theme: 'light',
   editorFontSize: 14,
   autoSaveEnabled: true,
   autoSaveInterval: 30000, // 30 seconds
+  bookmarks: [],
 };
 
 export const DEFAULT_PROJECT_SETTINGS: ProjectFile['settings'] = {

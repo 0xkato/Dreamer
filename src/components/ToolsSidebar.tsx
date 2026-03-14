@@ -34,7 +34,7 @@ function ToolButton({ tool, label, icon, shortcut }: ToolButtonProps) {
 
 export function ToolsSidebar() {
   return (
-    <div className="w-[72px] bg-white border-r border-slate-200/80 flex flex-col py-3 px-2 gap-1 shadow-sm">
+    <div className="w-[72px] bg-white dark:bg-slate-800 border-r border-slate-200/80 dark:border-slate-700 flex flex-col py-3 px-2 gap-1 shadow-sm">
       <ToolButton
         tool="select"
         label="Select"

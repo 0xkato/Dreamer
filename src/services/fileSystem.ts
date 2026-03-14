@@ -347,6 +347,61 @@ export async function writeFolderColors(
   }
 }
 
+// ============================================
+// Image Upload Operations
+// ============================================
+
+export async function uploadImage(projectPath: string, fileName: string, data: string): Promise<string> {
+  const response = await fetch(`${API_BASE}/api/upload-image`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectPath, fileName, data }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to upload image');
+  }
+  const result = await response.json();
+  return result.path;
+}
+
+export function getImageUrl(projectPath: string, imagePath: string): string {
+  const params = new URLSearchParams({ projectPath, imagePath });
+  return `${API_BASE}/api/image?${params}`;
+}
+
+// ============================================
+// Search Operations
+// ============================================
+
+export interface SearchResult {
+  file: string;
+  matches: Array<{ line: number; text: string; column: number }>;
+}
+
+export async function searchProjectFiles(projectPath: string, query: string): Promise<SearchResult[]> {
+  const params = new URLSearchParams({ projectPath, query });
+  const response = await fetch(`${API_BASE}/api/search?${params}`);
+  if (!response.ok) return [];
+  return await response.json();
+}
+
+// ============================================
+// Backlinks Operations
+// ============================================
+
+export interface BacklinkResult {
+  file: string;
+  matches: string[];
+}
+
+export async function getBacklinks(projectPath: string, fileName: string): Promise<BacklinkResult[]> {
+  const params = new URLSearchParams({ projectPath, fileName });
+  const response = await fetch(`${API_BASE}/api/backlinks?${params}`);
+  if (!response.ok) return [];
+  return await response.json();
+}
+
 // Helper to generate IDs (exposed for components that need it)
 export function generateId(): string {
   return uuidv4();

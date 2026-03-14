@@ -6,12 +6,16 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { MarkdownToolbar } from './MarkdownToolbar';
 import { MarkdownPreview } from './MarkdownPreview';
 import { SlashCommandMenu } from './SlashCommandMenu';
+import { BacklinksPanel } from './BacklinksPanel';
+import { useProjectStore } from '../../store';
+import { uploadImage } from '../../services/fileSystem';
 import type { OpenFile, MarkdownContent } from '../../types/project';
 
 interface MarkdownEditorProps {
   file: OpenFile;
   onContentChange: (text: string) => void;
   onSave: () => void;
+  onOpenLink?: (name: string) => void;
 }
 
 interface SlashMenuState {
@@ -21,10 +25,12 @@ interface SlashMenuState {
   slashPos: number; // Position of the `/` in the document
 }
 
-export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditorProps) {
+export function MarkdownEditor({ file, onContentChange, onSave, onOpenLink }: MarkdownEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const theme = useProjectStore((s) => s.settings.theme);
+  const currentProject = useProjectStore((s) => s.currentProject);
   const [slashMenu, setSlashMenu] = useState<SlashMenuState>({
     open: false,
     position: { x: 0, y: 0 },
@@ -33,6 +39,9 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
   });
 
   const content = (file.content as MarkdownContent).text;
+
+  // Refs to avoid stale closures in CodeMirror's updateListener
+  const handleChangeRef = useRef<(text: string, view: EditorView) => void>(() => {});
 
   // Get cursor screen position
   const getCursorPosition = useCallback(() => {
@@ -74,6 +83,9 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
     }
   }, [onContentChange, getCursorPosition, slashMenu.open]);
 
+  // Keep ref in sync so the CodeMirror closure always calls the latest version
+  handleChangeRef.current = handleChange;
+
   // Handle slash menu selection
   const handleSlashSelect = useCallback((insertText: string) => {
     const view = viewRef.current;
@@ -98,6 +110,57 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
   const closeSlashMenu = useCallback(() => {
     setSlashMenu((prev) => ({ ...prev, open: false }));
     viewRef.current?.focus();
+  }, []);
+
+  // Handle image upload (shared by drag-drop and paste)
+  const handleImageUpload = useCallback(async (imageFile: File) => {
+    const projectPath = currentProject?.path;
+    if (!projectPath) return;
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = (reader.result as string).split(',')[1];
+      try {
+        const imagePath = await uploadImage(projectPath, imageFile.name, base64);
+
+        const view = viewRef.current;
+        if (!view) return;
+        const pos = view.state.selection.main.head;
+        const imageMarkdown = `![${imageFile.name}](${imagePath})`;
+        view.dispatch({
+          changes: { from: pos, to: pos, insert: imageMarkdown },
+          selection: { anchor: pos + imageMarkdown.length },
+        });
+      } catch (err) {
+        console.error('Failed to upload image:', err);
+      }
+    };
+    reader.readAsDataURL(imageFile);
+  }, [currentProject?.path]);
+
+  // Use a ref so the CodeMirror paste handler always gets the latest function
+  const handleImageUploadRef = useRef(handleImageUpload);
+  handleImageUploadRef.current = handleImageUpload;
+
+  // Handle drop on editor
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    const imageFile = files[0];
+    if (!imageFile.type.startsWith('image/')) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    handleImageUpload(imageFile);
+  }, [handleImageUpload]);
+
+  // Handle drag over
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer?.types.includes('Files')) {
+      e.preventDefault();
+    }
   }, []);
 
   // Initialize editor
@@ -136,6 +199,42 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
       },
     });
 
+    // Custom theme for dark mode
+    const darkTheme = EditorView.theme({
+      '&': {
+        fontSize: '14px',
+        height: '100%',
+        backgroundColor: '#1e293b',
+      },
+      '.cm-content': {
+        fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+        padding: '16px',
+        color: '#e2e8f0',
+      },
+      '.cm-gutters': {
+        backgroundColor: '#0f172a',
+        borderRight: '1px solid #334155',
+        color: '#64748b',
+      },
+      '.cm-activeLineGutter': {
+        backgroundColor: '#1e293b',
+      },
+      '.cm-activeLine': {
+        backgroundColor: '#1e293b',
+      },
+      '.cm-cursor': {
+        borderLeftColor: '#818cf8',
+      },
+      '.cm-selectionBackground': {
+        backgroundColor: '#312e81 !important',
+      },
+      '&.cm-focused .cm-selectionBackground': {
+        backgroundColor: '#312e81 !important',
+      },
+    }, { dark: true });
+
+    const editorTheme = theme === 'dark' ? darkTheme : lightTheme;
+
     const state = EditorState.create({
       doc: content,
       extensions: [
@@ -152,13 +251,30 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
             },
           },
         ]),
-        lightTheme,
+        editorTheme,
         placeholder('Start writing...'),
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
           if (update.docChanged || update.selectionSet) {
-            handleChange(update.state.doc.toString(), update.view);
+            handleChangeRef.current(update.state.doc.toString(), update.view);
           }
+        }),
+        EditorView.domEventHandlers({
+          paste: (event) => {
+            const items = event.clipboardData?.items;
+            if (!items) return false;
+            for (const item of Array.from(items)) {
+              if (item.type.startsWith('image/')) {
+                event.preventDefault();
+                const pastedFile = item.getAsFile();
+                if (pastedFile) {
+                  handleImageUploadRef.current(pastedFile);
+                }
+                return true;
+              }
+            }
+            return false;
+          },
         }),
       ],
     });
@@ -174,7 +290,7 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
       view.destroy();
       viewRef.current = null;
     };
-  }, []); // Only run once on mount
+  }, [theme]); // Reinitialize when theme changes
 
   // Update editor content when file changes (e.g., switching files)
   useEffect(() => {
@@ -308,6 +424,20 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
     });
     view.focus();
   };
+  const handleInsertTable = () => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    const pos = view.state.selection.main.head;
+    const table = `\n| Header 1 | Header 2 | Header 3 |\n| -------- | -------- | -------- |\n| Cell 1   | Cell 2   | Cell 3   |\n| Cell 4   | Cell 5   | Cell 6   |\n`;
+
+    view.dispatch({
+      changes: { from: pos, to: pos, insert: table },
+      selection: { anchor: pos + table.length },
+    });
+    view.focus();
+  };
+
   const handleCodeBlock = () => insertText('\n```\n', '\n```\n');
   const handleQuote = () => {
     const view = viewRef.current;
@@ -327,7 +457,7 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
   };
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-800">
       {/* Toolbar */}
       <MarkdownToolbar
         onBold={handleBold}
@@ -340,6 +470,7 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
         onNumberedList={handleNumberedList}
         onCodeBlock={handleCodeBlock}
         onQuote={handleQuote}
+        onInsertTable={handleInsertTable}
         onTogglePreview={() => setShowPreview(!showPreview)}
         onInsertSymbol={handleInsertSymbol}
         onOpenSymbolMenu={handleOpenSymbolMenu}
@@ -353,13 +484,15 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
         {/* Editor */}
         <div
           ref={editorRef}
-          className={`h-full overflow-auto ${showPreview ? 'w-1/2 border-r border-slate-200' : 'w-full'}`}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          className={`h-full overflow-auto ${showPreview ? 'w-1/2 border-r border-slate-200 dark:border-slate-700' : 'w-full'}`}
         />
 
         {/* Preview */}
         {showPreview && (
           <div className="w-1/2 h-full overflow-auto">
-            <MarkdownPreview content={content} />
+            <MarkdownPreview content={content} projectPath={currentProject?.path} onWikiLinkClick={onOpenLink} />
           </div>
         )}
 
@@ -373,6 +506,15 @@ export function MarkdownEditor({ file, onContentChange, onSave }: MarkdownEditor
           />
         )}
       </div>
+
+      {/* Backlinks panel */}
+      {currentProject?.path && file.path && (
+        <BacklinksPanel
+          projectPath={currentProject.path}
+          currentFile={file.path}
+          onOpenFile={(path) => onOpenLink?.(path)}
+        />
+      )}
     </div>
   );
 }

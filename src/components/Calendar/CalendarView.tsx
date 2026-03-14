@@ -4,6 +4,7 @@ import { getTodayString, addDays, getDayName, getFormattedDate, formatTime, form
 import type { CalendarEvent, WeeklyTodo } from '../../types/calendar';
 import { EventDialog, type DeleteMode } from './EventDialog';
 import { WeeklyTodoPanel } from './WeeklyTodoPanel';
+import { SpreadsheetPanel } from './SpreadsheetPanel';
 
 const HOUR_HEIGHT = 60; // pixels per hour
 const START_HOUR = 0; // Start at midnight
@@ -80,6 +81,8 @@ export function CalendarView() {
   } | null>(null);
   const [draggedWeeklyTodo, setDraggedWeeklyTodo] = useState<WeeklyTodo | null>(null);
   const [dropTargetDate, setDropTargetDate] = useState<string | null>(null);
+  const [calendarCollapsed, setCalendarCollapsed] = useState(false);
+  const [spreadsheetCollapsed, setSpreadsheetCollapsed] = useState(false);
 
   // Current time indicator
   const [currentTime, setCurrentTime] = useState(() => {
@@ -606,11 +609,40 @@ export function CalendarView() {
   };
 
   return (
-    <div className="h-full flex bg-white">
-      {/* Calendar */}
-      <div className="flex-1 flex flex-col">
+    <div className="h-full flex bg-white dark:bg-slate-800">
+      {/* Calendar + Spreadsheet */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Toggle bar - always visible */}
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900">
+          <button
+            onClick={() => setCalendarCollapsed(!calendarCollapsed)}
+            className={`flex items-center gap-1.5 px-3 py-1 text-sm font-medium rounded transition-colors ${
+              !calendarCollapsed ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            <svg className={`w-4 h-4 transition-transform ${calendarCollapsed ? '-rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+            Calendar
+          </button>
+          <button
+            onClick={() => setSpreadsheetCollapsed(!spreadsheetCollapsed)}
+            className={`flex items-center gap-1.5 px-3 py-1 text-sm font-medium rounded transition-colors ${
+              !spreadsheetCollapsed ? 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            <svg className={`w-4 h-4 transition-transform ${spreadsheetCollapsed ? '-rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+            Tracker
+          </button>
+        </div>
+
+        {/* Calendar section - collapsible */}
+        {!calendarCollapsed && (
+        <div className="flex-1 flex flex-col min-h-0">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
           <div className="flex items-center gap-2">
             <button
               onClick={goToPrevWeek}
@@ -637,7 +669,7 @@ export function CalendarView() {
           </div>
 
           <div className="text-center">
-            <h2 className="text-lg font-semibold text-slate-800">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
               {getFormattedDate(weekStart)} - {getFormattedDate(addDays(weekStart, 6))}
             </h2>
             <span className="text-xs text-slate-500">{formatWeek(weekStart)}</span>
@@ -647,7 +679,7 @@ export function CalendarView() {
         </div>
 
         {/* Day headers with drop zones */}
-        <div className="flex border-b border-slate-200">
+        <div className="flex border-b border-slate-200 dark:border-slate-700">
           <div className="w-16 flex-shrink-0" /> {/* Time column spacer */}
           {weekDays.map((date) => {
             const isDropTarget = dropTargetDate === date;
@@ -657,11 +689,11 @@ export function CalendarView() {
             return (
               <div
                 key={date}
-                className={`flex-1 py-2 text-center border-l border-slate-200 cursor-pointer transition-colors ${
-                  date === today ? 'bg-indigo-50' : ''
+                className={`flex-1 py-2 text-center border-l border-slate-200 dark:border-slate-700 cursor-pointer transition-colors ${
+                  date === today ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''
                 } ${date === selectedDate ? 'ring-2 ring-inset ring-indigo-400' : ''} ${
-                  isDropTarget ? 'bg-indigo-100 ring-2 ring-indigo-400' : ''
-                } hover:bg-slate-50`}
+                  isDropTarget ? 'bg-indigo-100 dark:bg-indigo-900/50 ring-2 ring-indigo-400' : ''
+                } hover:bg-slate-50 dark:hover:bg-slate-700`}
                 onClick={() => handleDayClick(date)}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -679,7 +711,7 @@ export function CalendarView() {
               >
                 <div className="text-xs text-slate-500 uppercase">{getDayName(date)}</div>
                 <div className={`text-lg font-semibold ${
-                  date === today ? 'text-indigo-600' : 'text-slate-800'
+                  date === today ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'
                 }`}>
                   {new Date(date).getDate()}
                 </div>
@@ -704,7 +736,7 @@ export function CalendarView() {
               {Array.from({ length: TOTAL_HOURS }, (_, i) => (
                 <div
                   key={i}
-                  className="relative border-b border-slate-100"
+                  className="relative border-b border-slate-100 dark:border-slate-700"
                   style={{ height: HOUR_HEIGHT }}
                 >
                   <span className="absolute -top-2.5 right-2 text-xs text-slate-400">
@@ -720,7 +752,7 @@ export function CalendarView() {
               {Array.from({ length: TOTAL_HOURS }, (_, i) => (
                 <div
                   key={i}
-                  className="absolute w-full border-b border-slate-100"
+                  className="absolute w-full border-b border-slate-100 dark:border-slate-700"
                   style={{ top: i * HOUR_HEIGHT, height: HOUR_HEIGHT }}
                 />
               ))}
@@ -730,9 +762,9 @@ export function CalendarView() {
                 {weekDays.map((date, i) => (
                   <div
                     key={date}
-                    className={`flex-1 border-l border-slate-200 ${
-                      date === today ? 'bg-indigo-50/30' : ''
-                    } ${date === selectedDate ? 'bg-indigo-50/50' : ''}`}
+                    className={`flex-1 border-l border-slate-200 dark:border-slate-700 ${
+                      date === today ? 'bg-indigo-50/30 dark:bg-indigo-900/10' : ''
+                    } ${date === selectedDate ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : ''}`}
                     onMouseDown={(e) => handleMouseDown(e, i, date)}
                   />
                 ))}
@@ -752,6 +784,15 @@ export function CalendarView() {
             </div>
           </div>
         </div>
+      </div>
+        )}
+
+        {/* Spreadsheet section - collapsible */}
+        {!spreadsheetCollapsed && (
+          <div className={`border-t border-slate-300 dark:border-slate-600 overflow-auto ${calendarCollapsed ? 'flex-1' : 'h-[300px] min-h-[200px]'}`}>
+            <SpreadsheetPanel weekStart={weekStart} weekDays={weekDays} />
+          </div>
+        )}
       </div>
 
       {/* Weekly Todo Panel */}
@@ -778,9 +819,9 @@ export function CalendarView() {
       {/* Move confirmation dialog */}
       {pendingMove && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200">
-              <h2 className="text-lg font-semibold text-slate-800">Move Event</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Move Event</h2>
             </div>
             <div className="p-6">
               <p className="text-slate-600 mb-2">

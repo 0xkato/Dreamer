@@ -92,6 +92,7 @@ export interface ConnectorElement {
   sourceAnchor: AnchorPosition;
   targetAnchor: AnchorPosition;
   style: ConnectorStyle;
+  curveStyle?: 'straight' | 'curved'; // default 'straight'
   waypoints?: Point[]; // For manual routing overrides
 }
 

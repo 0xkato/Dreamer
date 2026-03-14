@@ -36,6 +36,18 @@ export interface WeeklyTodo {
   createdAt: string;
 }
 
+export interface SpreadsheetItem {
+  id: string;
+  title: string;
+  type: 'do' | 'dont';
+  recurring: boolean;
+  date: string | null;     // null for recurring, YYYY-MM-DD for one-off
+  weekStart: string;       // which week this item belongs to
+  completions: Record<string, boolean>; // { "2026-03-14": true }
+  order: number;
+  createdAt: string;
+}
+
 export interface CalendarDay {
   date: string; // YYYY-MM-DD
   events: CalendarEvent[];
@@ -45,7 +57,8 @@ export interface CalendarData {
   version: string;
   events: CalendarEvent[];
   todos: CalendarTodo[];
-  weeklyTodos?: WeeklyTodo[]; // New weekly todos
+  weeklyTodos?: WeeklyTodo[];
+  spreadsheetItems?: SpreadsheetItem[];
 }
 
 // Format minutes to time string (e.g., 540 -> "9:00 AM")

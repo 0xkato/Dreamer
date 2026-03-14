@@ -58,10 +58,10 @@ export function ProjectSelector({ isOpen, onClose, mode }: ProjectSelectorProps)
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-800">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
             {mode === 'create' ? 'Create New Project' : 'Open Project'}
           </h2>
           <button
@@ -95,7 +95,7 @@ export function ProjectSelector({ isOpen, onClose, mode }: ProjectSelectorProps)
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   placeholder="My Notes"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   disabled={isLoading}
                 />
               </div>
@@ -135,7 +135,7 @@ export function ProjectSelector({ isOpen, onClose, mode }: ProjectSelectorProps)
               </p>
 
               {/* Project list */}
-              <div className="max-h-64 overflow-auto border border-slate-200 rounded-lg divide-y divide-slate-100">
+              <div className="max-h-64 overflow-auto border border-slate-200 dark:border-slate-700 rounded-lg divide-y divide-slate-100 dark:divide-slate-700">
                 {availableProjects.length === 0 ? (
                   <div className="p-4 text-center text-slate-500 text-sm">
                     No projects found. Create a new project to get started.
@@ -146,7 +146,7 @@ export function ProjectSelector({ isOpen, onClose, mode }: ProjectSelectorProps)
                       key={project.path}
                       onClick={() => handleProjectClick(project.path)}
                       disabled={isLoading}
-                      className="w-full px-4 py-3 hover:bg-slate-50 flex items-center gap-3 transition-colors text-left disabled:opacity-50"
+                      className="w-full px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 transition-colors text-left disabled:opacity-50"
                     >
                       <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center flex-shrink-0">
                         <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -154,7 +154,7 @@ export function ProjectSelector({ isOpen, onClose, mode }: ProjectSelectorProps)
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-slate-800 truncate">{project.name}</div>
+                        <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{project.name}</div>
                         <div className="text-xs text-slate-400">
                           Created {new Date(project.createdAt).toLocaleDateString()}
                         </div>
