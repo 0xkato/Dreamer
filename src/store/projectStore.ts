@@ -67,8 +67,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   initialize: async () => {
     set({ isLoading: true, error: null });
     try {
-      const settings = await loadAppSettings();
-      applyThemeClass(settings.theme);
+      const loaded = await loadAppSettings();
+      const settings: AppSettings = { ...DEFAULT_APP_SETTINGS, ...loaded, bookmarks: loaded.bookmarks || [] };
+      applyThemeClass(settings.theme || 'light');
       set({ settings, isLoading: false });
 
       // Load available projects
@@ -211,10 +212,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   addBookmark: async (path) => {
     const { settings } = get();
-    if (settings.bookmarks.includes(path)) return;
+    const bookmarks = settings.bookmarks || [];
+    if (bookmarks.includes(path)) return;
     const newSettings: AppSettings = {
       ...settings,
-      bookmarks: [...settings.bookmarks, path],
+      bookmarks: [...bookmarks, path],
     };
     try {
       await saveAppSettings(newSettings);
@@ -228,7 +230,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const { settings } = get();
     const newSettings: AppSettings = {
       ...settings,
-      bookmarks: settings.bookmarks.filter((b) => b !== path),
+      bookmarks: (settings.bookmarks || []).filter((b) => b !== path),
     };
     try {
       await saveAppSettings(newSettings);
@@ -239,6 +241,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   isBookmarked: (path) => {
-    return get().settings.bookmarks.includes(path);
+    return (get().settings.bookmarks || []).includes(path);
   },
 }));
