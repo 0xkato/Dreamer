@@ -136,11 +136,7 @@ export function SlashCommandMenu({ position, filter, onSelect, onClose }: SlashC
                 ref={isSelected ? selectedRef : null}
                 onClick={() => handleSelect(menuItem)}
                 className={`w-full px-3 py-1.5 flex items-center gap-3 text-left text-sm ${
-<<<<<<< HEAD
-                  isSelected ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50'
-=======
                   isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-slate-50 dark:hover:bg-slate-700'
->>>>>>> 0e18ad3 (productivity deluxe)
                 }`}
               >
                 <span className="text-lg w-6 text-center">{menuItem.item.symbol}</span>
@@ -165,11 +161,7 @@ export function SlashCommandMenu({ position, filter, onSelect, onClose }: SlashC
                 ref={isSelected ? selectedRef : null}
                 onClick={() => handleSelect(menuItem)}
                 className={`w-full px-3 py-1.5 flex items-center gap-3 text-left text-sm ${
-<<<<<<< HEAD
-                  isSelected ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50'
-=======
                   isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'hover:bg-slate-50 dark:hover:bg-slate-700'
->>>>>>> 0e18ad3 (productivity deluxe)
                 }`}
               >
                 <span className="text-lg w-6 text-center">📄</span>
