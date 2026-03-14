@@ -24,7 +24,7 @@ export function WelcomeScreen() {
   };
 
   return (
-    <div className="h-screen w-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+    <div className="h-screen w-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
       <div className="max-w-2xl w-full mx-auto px-8">
         {/* Logo and Title */}
         <div className="text-center mb-12">
@@ -33,8 +33,8 @@ export function WelcomeScreen() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Welcome to Dreamer</h1>
-          <p className="text-slate-500">Create diagrams and take notes, all in one place.</p>
+          <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-2">Welcome to Dreamer</h1>
+          <p className="text-slate-500 dark:text-slate-400">Create diagrams and take notes, all in one place.</p>
         </div>
 
         {/* Error message */}
@@ -54,29 +54,29 @@ export function WelcomeScreen() {
           <button
             onClick={handleCreate}
             disabled={isLoading}
-            className="group p-6 bg-white rounded-xl border-2 border-slate-200 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-100 transition-all text-left disabled:opacity-50"
+            className="group p-6 bg-white dark:bg-slate-800 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-100 dark:hover:shadow-indigo-900/20 transition-all text-left disabled:opacity-50"
           >
-            <div className="w-12 h-12 rounded-lg bg-indigo-100 group-hover:bg-indigo-200 flex items-center justify-center mb-4 transition-colors">
-              <svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-12 h-12 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-900 flex items-center justify-center mb-4 transition-colors">
+              <svg className="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </div>
-            <h3 className="font-semibold text-slate-800 mb-1">Create Project</h3>
-            <p className="text-sm text-slate-500">Start a new workspace for your notes and diagrams</p>
+            <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-1">Create Project</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Start a new workspace for your notes and diagrams</p>
           </button>
 
           <button
             onClick={handleOpen}
             disabled={isLoading}
-            className="group p-6 bg-white rounded-xl border-2 border-slate-200 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-100 transition-all text-left disabled:opacity-50"
+            className="group p-6 bg-white dark:bg-slate-800 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-100 dark:hover:shadow-indigo-900/20 transition-all text-left disabled:opacity-50"
           >
-            <div className="w-12 h-12 rounded-lg bg-slate-100 group-hover:bg-slate-200 flex items-center justify-center mb-4 transition-colors">
-              <svg className="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-700 group-hover:bg-slate-200 dark:group-hover:bg-slate-600 flex items-center justify-center mb-4 transition-colors">
+              <svg className="w-6 h-6 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
               </svg>
             </div>
-            <h3 className="font-semibold text-slate-800 mb-1">Open Project</h3>
-            <p className="text-sm text-slate-500">Open an existing project from your computer</p>
+            <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-1">Open Project</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Open an existing project from your computer</p>
           </button>
         </div>
 
@@ -86,13 +86,13 @@ export function WelcomeScreen() {
             <h2 className="text-sm font-medium text-slate-500 uppercase tracking-wide mb-3">
               Recent Projects
             </h2>
-            <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700 overflow-hidden">
               {recentProjects.slice(0, 5).map((project) => (
                 <button
                   key={project.id}
                   onClick={() => handleRecentClick(project)}
                   disabled={isLoading}
-                  className="w-full px-4 py-3 hover:bg-slate-50 flex items-center gap-3 transition-colors text-left disabled:opacity-50"
+                  className="w-full px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3 transition-colors text-left disabled:opacity-50"
                 >
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center flex-shrink-0">
                     <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -100,7 +100,7 @@ export function WelcomeScreen() {
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-slate-800 truncate">{project.name}</div>
+                    <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{project.name}</div>
                     <div className="text-xs text-slate-400 truncate">{project.path}</div>
                   </div>
                   <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -115,12 +115,12 @@ export function WelcomeScreen() {
         {/* Loading indicator */}
         {isLoading && (
           <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 shadow-xl flex items-center gap-3">
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-xl flex items-center gap-3">
               <svg className="animate-spin h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              <span className="text-slate-700">Loading project...</span>
+              <span className="text-slate-700 dark:text-slate-300">Loading project...</span>
             </div>
           </div>
         )}

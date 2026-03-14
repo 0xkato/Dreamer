@@ -200,10 +200,10 @@ export function FileTreeNode({
       <div
         className={`
           flex items-center gap-1 px-2 py-1 rounded cursor-pointer text-sm transition-colors select-none
-          ${isActive ? 'bg-indigo-100 text-indigo-800' : ''}
-          ${isSelected && !isActive ? 'bg-slate-200' : ''}
-          ${!isSelected && !isActive && !isDragOver ? 'hover:bg-slate-100' : ''}
-          ${isDragOver ? 'bg-indigo-200 ring-2 ring-indigo-400' : ''}
+          ${isActive ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300' : ''}
+          ${isSelected && !isActive ? 'bg-slate-200 dark:bg-slate-700' : ''}
+          ${!isSelected && !isActive && !isDragOver ? 'hover:bg-slate-100 dark:hover:bg-slate-700' : ''}
+          ${isDragOver ? 'bg-indigo-200 ring-2 ring-indigo-400 dark:bg-indigo-900/50' : ''}
           ${isDragging ? 'opacity-50' : ''}
         `}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}

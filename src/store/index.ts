@@ -4,3 +4,4 @@ export { useProjectStore } from './projectStore';
 export { useFileTreeStore } from './fileTreeStore';
 export { useEditorStore } from './editorStore';
 export { useCalendarStore } from './calendarStore';
+export { useTemplateStore } from './templateStore';

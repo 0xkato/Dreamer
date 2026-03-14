@@ -104,8 +104,8 @@ export function WeeklyTodoPanel({ weekStart, selectedDate, onDragStart }: Weekly
       <div
         key={todo.id}
         className={`flex items-center gap-2 p-2 rounded-lg group ${
-          todo.completed ? 'bg-slate-50' : 'bg-white'
-        } border border-slate-200 hover:border-slate-300 transition-colors`}
+          todo.completed ? 'bg-slate-50 dark:bg-slate-900' : 'bg-white dark:bg-slate-800'
+        } border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-colors`}
         draggable={showDragHandle && !isEditing && !todo.completed}
         onDragStart={(e) => {
           e.dataTransfer.setData('weekly-todo-id', todo.id);
@@ -253,24 +253,24 @@ export function WeeklyTodoPanel({ weekStart, selectedDate, onDragStart }: Weekly
   const totalCount = allWeekTodos.length;
 
   return (
-    <div className="w-80 h-full flex flex-col bg-slate-50 border-l border-slate-200">
+    <div className="w-80 h-full flex flex-col bg-slate-50 dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-slate-200 bg-white">
-        <h3 className="font-semibold text-slate-800">{formatWeek(weekStart)}</h3>
+      <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+        <h3 className="font-semibold text-slate-800 dark:text-slate-200">{formatWeek(weekStart)}</h3>
         <p className="text-xs text-slate-500 mt-0.5">
           {completedCount} of {totalCount} completed
         </p>
       </div>
 
       {/* Add todo form */}
-      <form onSubmit={handleAddTodo} className="p-3 border-b border-slate-200 bg-white">
+      <form onSubmit={handleAddTodo} className="p-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
         <div className="flex gap-2">
           <input
             type="text"
             value={newTodoTitle}
             onChange={(e) => setNewTodoTitle(e.target.value)}
             placeholder="Add a task for this week..."
-            className="flex-1 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="flex-1 px-3 py-1.5 text-sm border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
           <button
             type="submit"
@@ -283,7 +283,7 @@ export function WeeklyTodoPanel({ weekStart, selectedDate, onDragStart }: Weekly
       </form>
 
       {/* Drag hint */}
-      <div className="px-3 py-2 bg-indigo-50 border-b border-indigo-100">
+      <div className="px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-100 dark:border-indigo-800">
         <p className="text-xs text-indigo-600 flex items-center gap-1">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

@@ -9,7 +9,7 @@ export function PropertiesPanel() {
 
   if (!selectedElement && !selectedConnector) {
     return (
-      <div className="w-64 bg-white border-l border-slate-200/80 p-5 shadow-sm">
+      <div className="w-64 bg-white dark:bg-slate-800 border-l border-slate-200/80 dark:border-slate-700 p-5 shadow-sm">
         <div className="text-center py-8">
           <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-100 flex items-center justify-center">
             <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -167,7 +167,7 @@ function ShapeProperties({
   };
 
   return (
-    <div className="w-64 bg-white border-l border-slate-200/80 p-4 overflow-y-auto shadow-sm">
+    <div className="w-64 bg-white dark:bg-slate-800 border-l border-slate-200/80 dark:border-slate-700 p-4 overflow-y-auto shadow-sm">
       <div className="panel-section">
         <SectionTitle>Shape</SectionTitle>
         <ColorInput label="Fill" value={style.fillColor} onChange={(v) => updateStyle({ fillColor: v })} />
@@ -222,7 +222,7 @@ function TextProperties({
   };
 
   return (
-    <div className="w-64 bg-white border-l border-slate-200/80 p-4 overflow-y-auto shadow-sm">
+    <div className="w-64 bg-white dark:bg-slate-800 border-l border-slate-200/80 dark:border-slate-700 p-4 overflow-y-auto shadow-sm">
       <div className="panel-section">
         <SectionTitle>Text</SectionTitle>
         <ColorInput label="Color" value={textStyle.color} onChange={(v) => updateTextStyle({ color: v })} />
@@ -291,7 +291,7 @@ function ConnectorProperties({
   };
 
   return (
-    <div className="w-64 bg-white border-l border-slate-200/80 p-4 overflow-y-auto shadow-sm">
+    <div className="w-64 bg-white dark:bg-slate-800 border-l border-slate-200/80 dark:border-slate-700 p-4 overflow-y-auto shadow-sm">
       <div className="panel-section">
         <SectionTitle>Line</SectionTitle>
         <ColorInput label="Color" value={style.strokeColor} onChange={(v) => updateStyle({ strokeColor: v })} />
@@ -305,6 +305,27 @@ function ConnectorProperties({
             </ToggleButton>
             <ToggleButton active={style.lineStyle === 'dashed'} onClick={() => updateStyle({ lineStyle: 'dashed' })}>
               Dashed
+            </ToggleButton>
+          </div>
+        </PropertyRow>
+      </div>
+
+      <div className="panel-section">
+        <SectionTitle>Path</SectionTitle>
+        <PropertyRow>
+          <PropertyLabel>Curve</PropertyLabel>
+          <div className="flex gap-2">
+            <ToggleButton
+              active={connector.curveStyle !== 'curved'}
+              onClick={() => onUpdate({ curveStyle: 'straight' })}
+            >
+              Straight
+            </ToggleButton>
+            <ToggleButton
+              active={connector.curveStyle === 'curved'}
+              onClick={() => onUpdate({ curveStyle: 'curved' })}
+            >
+              Curved
             </ToggleButton>
           </div>
         </PropertyRow>
@@ -351,7 +372,7 @@ function DrawingProperties({
   };
 
   return (
-    <div className="w-64 bg-white border-l border-slate-200/80 p-4 overflow-y-auto shadow-sm">
+    <div className="w-64 bg-white dark:bg-slate-800 border-l border-slate-200/80 dark:border-slate-700 p-4 overflow-y-auto shadow-sm">
       <div className="panel-section">
         <SectionTitle>Stroke</SectionTitle>
         <ColorInput label="Color" value={style.strokeColor} onChange={(v) => updateStyle({ strokeColor: v })} />

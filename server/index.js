@@ -20,7 +20,7 @@ await fs.mkdir(DATA_DIR, { recursive: true });
 await fs.mkdir(PROJECTS_BASE, { recursive: true });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // Serve static files from the built frontend
 app.use(express.static(path.join(__dirname, '../dist')));
@@ -585,6 +585,307 @@ app.post('/api/folder-colors', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// Templates Endpoints
+// ============================================
+
+const TEMPLATES_DIR = path.join(DATA_DIR, 'templates');
+
+// Ensure templates directory exists
+await fs.mkdir(TEMPLATES_DIR, { recursive: true });
+
+// Read templates from a directory
+app.get('/api/templates', async (req, res) => {
+  try {
+    const { path: templatePath } = req.query;
+
+    // Determine actual path - 'global' means app-wide templates
+    let actualPath;
+    if (templatePath === 'global') {
+      actualPath = TEMPLATES_DIR;
+    } else {
+      actualPath = templatePath;
+    }
+
+    // Ensure directory exists
+    try {
+      await fs.access(actualPath);
+    } catch {
+      // Directory doesn't exist, return empty array
+      return res.json([]);
+    }
+
+    const entries = await fs.readdir(actualPath, { withFileTypes: true });
+    const templates = [];
+
+    for (const entry of entries) {
+      if (entry.isFile() && entry.name.endsWith('.md')) {
+        const filePath = path.join(actualPath, entry.name);
+        const content = await fs.readFile(filePath, 'utf-8');
+        templates.push({
+          name: entry.name,
+          content,
+        });
+      }
+    }
+
+    res.json(templates);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Save a template
+app.post('/api/templates', async (req, res) => {
+  try {
+    const { path: templatePath, fileName, content } = req.body;
+
+    // Determine actual path - 'global' means app-wide templates
+    let actualPath;
+    if (templatePath === 'global') {
+      actualPath = TEMPLATES_DIR;
+    } else {
+      actualPath = templatePath;
+    }
+
+    // Ensure directory exists
+    await fs.mkdir(actualPath, { recursive: true });
+
+    const filePath = path.join(actualPath, fileName);
+    await fs.writeFile(filePath, content);
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// Backlinks Endpoints
+// ============================================
+
+app.get('/api/backlinks', async (req, res) => {
+  try {
+    const { projectPath, fileName } = req.query;
+
+    if (!projectPath || !fileName) {
+      return res.status(400).json({ error: 'projectPath and fileName are required' });
+    }
+
+    const files = await collectFiles(projectPath, projectPath);
+    const results = [];
+
+    // Normalize the target file name for matching
+    const targetName = fileName.replace(/\.md$/i, '').toLowerCase();
+    const targetWithExt = targetName + '.md';
+
+    for (const file of files) {
+      // Don't check the file against itself
+      if (file.relativePath.toLowerCase() === fileName.toLowerCase()) continue;
+
+      let content;
+      try {
+        content = await fs.readFile(file.fullPath, 'utf-8');
+      } catch {
+        continue;
+      }
+
+      const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
+      const matches = [];
+      let match;
+
+      while ((match = wikiLinkRegex.exec(content)) !== null) {
+        const linkText = match[1].toLowerCase();
+        const linkWithoutExt = linkText.replace(/\.md$/i, '');
+
+        if (linkWithoutExt === targetName || linkText === targetWithExt) {
+          matches.push(match[1]);
+        }
+      }
+
+      if (matches.length > 0) {
+        results.push({
+          file: file.relativePath,
+          matches,
+        });
+      }
+    }
+
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// Search Endpoints
+// ============================================
+
+// Recursively collect all .md files in a directory
+async function collectFiles(dir, baseDir, fileList = []) {
+  let entries;
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch {
+    return fileList;
+  }
+
+  for (const entry of entries) {
+    if (entry.name.startsWith('.') || entry.name === PROJECT_FILE || entry.name === CALENDAR_FILE) continue;
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      await collectFiles(fullPath, baseDir, fileList);
+    } else if (entry.name.toLowerCase().endsWith('.md') || entry.name.toLowerCase().endsWith('.markdown')) {
+      const relativePath = path.relative(baseDir, fullPath);
+      fileList.push({ relativePath, fullPath });
+    }
+  }
+
+  return fileList;
+}
+
+app.get('/api/search', async (req, res) => {
+  try {
+    const { projectPath, query } = req.query;
+
+    if (!projectPath || !query) {
+      return res.status(400).json({ error: 'projectPath and query are required' });
+    }
+
+    const files = await collectFiles(projectPath, projectPath);
+    const results = [];
+    let totalMatches = 0;
+    const MAX_TOTAL_MATCHES = 50;
+    const queryLower = query.toLowerCase();
+
+    for (const file of files) {
+      if (totalMatches >= MAX_TOTAL_MATCHES) break;
+
+      let content;
+      try {
+        content = await fs.readFile(file.fullPath, 'utf-8');
+      } catch {
+        continue;
+      }
+
+      const lines = content.split('\n');
+      const matches = [];
+
+      for (let i = 0; i < lines.length; i++) {
+        if (totalMatches >= MAX_TOTAL_MATCHES) break;
+
+        const lineLower = lines[i].toLowerCase();
+        const col = lineLower.indexOf(queryLower);
+        if (col !== -1) {
+          matches.push({
+            line: i + 1,
+            text: lines[i],
+            column: col,
+          });
+          totalMatches++;
+        }
+      }
+
+      if (matches.length > 0) {
+        results.push({
+          file: file.relativePath,
+          matches,
+        });
+      }
+    }
+
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// Image Upload & Serving Endpoints
+// ============================================
+
+// Upload an image (base64 JSON approach)
+app.post('/api/upload-image', async (req, res) => {
+  try {
+    const { projectPath, fileName, data } = req.body;
+
+    if (!projectPath || !fileName || !data) {
+      return res.status(400).json({ error: 'projectPath, fileName, and data are required' });
+    }
+
+    // Ensure assets directory exists
+    const assetsDir = path.join(projectPath, 'assets');
+    await fs.mkdir(assetsDir, { recursive: true });
+
+    // Determine final file name (handle duplicates)
+    const ext = path.extname(fileName);
+    const base = path.basename(fileName, ext);
+    let finalName = fileName;
+    let counter = 1;
+
+    while (true) {
+      try {
+        await fs.access(path.join(assetsDir, finalName));
+        // File exists, try next number
+        finalName = `${base}-${counter}${ext}`;
+        counter++;
+      } catch {
+        // File doesn't exist, we can use this name
+        break;
+      }
+    }
+
+    // Write the file
+    const buffer = Buffer.from(data, 'base64');
+    await fs.writeFile(path.join(assetsDir, finalName), buffer);
+
+    res.json({ path: `assets/${finalName}` });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Serve an image from a project
+app.get('/api/image', async (req, res) => {
+  try {
+    const { projectPath, imagePath } = req.query;
+
+    if (!projectPath || !imagePath) {
+      return res.status(400).json({ error: 'projectPath and imagePath are required' });
+    }
+
+    const absolutePath = path.join(projectPath, imagePath);
+
+    // Security: ensure the resolved path is within the project
+    const resolvedPath = path.resolve(absolutePath);
+    const resolvedProject = path.resolve(projectPath);
+    if (!resolvedPath.startsWith(resolvedProject)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Determine content type from extension
+    const ext = path.extname(imagePath).toLowerCase();
+    const mimeTypes = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.svg': 'image/svg+xml',
+      '.webp': 'image/webp',
+      '.bmp': 'image/bmp',
+      '.ico': 'image/x-icon',
+    };
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
+
+    const fileBuffer = await fs.readFile(absolutePath);
+    res.set('Content-Type', contentType);
+    res.send(fileBuffer);
+  } catch (error) {
+    res.status(404).json({ error: 'Image not found' });
   }
 });
 

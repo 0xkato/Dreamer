@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { CalendarEvent, CalendarTodo, WeeklyTodo } from '../types/calendar';
+import type { CalendarEvent, CalendarTodo, WeeklyTodo, SpreadsheetItem } from '../types/calendar';
 import { getTodayString, addDays } from '../types/calendar';
 import {
   readCalendarFile,
@@ -15,6 +15,7 @@ interface CalendarStore {
   events: CalendarEvent[];
   todos: CalendarTodo[];
   weeklyTodos: WeeklyTodo[];
+  spreadsheetItems: SpreadsheetItem[];
   selectedDate: string;
   isLoading: boolean;
   error: string | null;
@@ -51,6 +52,13 @@ interface CalendarStore {
   toggleWeeklyTodoComplete: (projectPath: string, todoId: string) => Promise<void>;
   assignWeeklyTodoToDate: (projectPath: string, todoId: string, date: string | null) => Promise<void>;
 
+  // Spreadsheet operations
+  addSpreadsheetItem: (projectPath: string, item: Omit<SpreadsheetItem, 'id' | 'createdAt' | 'order'>) => Promise<void>;
+  updateSpreadsheetItem: (projectPath: string, itemId: string, updates: Partial<SpreadsheetItem>) => Promise<void>;
+  deleteSpreadsheetItem: (projectPath: string, itemId: string) => Promise<void>;
+  toggleSpreadsheetCompletion: (projectPath: string, itemId: string, date: string) => Promise<void>;
+  getSpreadsheetItemsForWeek: (weekStart: string) => SpreadsheetItem[];
+
   // Helpers
   getEventsForDate: (date: string) => CalendarEvent[];
   getTodosForDate: (date: string) => CalendarTodo[];
@@ -66,6 +74,7 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
   events: [],
   todos: [],
   weeklyTodos: [],
+  spreadsheetItems: [],
   selectedDate: getTodayString(),
   isLoading: false,
   error: null,
@@ -82,6 +91,7 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
         events: data.events,
         todos: data.todos || [],
         weeklyTodos: data.weeklyTodos || [],
+        spreadsheetItems: data.spreadsheetItems || [],
         isLoading: false,
       });
     } catch (error) {
@@ -94,8 +104,8 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
 
   // Helper to save current state
   _saveState: async (projectPath: string) => {
-    const { events, todos, weeklyTodos } = get();
-    await writeCalendarFile(projectPath, { version: '1.0.0', events, todos, weeklyTodos });
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
+    await writeCalendarFile(projectPath, { version: '1.0.0', events, todos, weeklyTodos, spreadsheetItems });
   },
 
   addEvent: async (projectPath, eventData) => {
@@ -104,20 +114,20 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
       id: uuidv4(),
     };
 
-    const { events, todos, weeklyTodos } = get();
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
     const newEvents = [...events, event];
 
     set({ events: newEvents });
 
     try {
-      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos, weeklyTodos });
+      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos, weeklyTodos, spreadsheetItems });
     } catch (error) {
       set({ events, error: error instanceof Error ? error.message : 'Failed to save event' });
     }
   },
 
   updateEvent: async (projectPath, eventId, updates) => {
-    const { events, todos, weeklyTodos } = get();
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
     const index = events.findIndex(e => e.id === eventId);
 
     if (index === -1) return;
@@ -128,14 +138,14 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
     set({ events: newEvents });
 
     try {
-      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos, weeklyTodos });
+      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos, weeklyTodos, spreadsheetItems });
     } catch (error) {
       set({ events, error: error instanceof Error ? error.message : 'Failed to update event' });
     }
   },
 
   deleteEvent: async (projectPath, eventId) => {
-    const { events, todos, weeklyTodos } = get();
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
     const newEvents = events.filter(e => e.id !== eventId);
     // Also unassign any todos from this event
     const newTodos = todos.map(t =>
@@ -145,14 +155,14 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
     set({ events: newEvents, todos: newTodos });
 
     try {
-      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos: newTodos, weeklyTodos });
+      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos: newTodos, weeklyTodos, spreadsheetItems });
     } catch (error) {
       set({ events, todos, error: error instanceof Error ? error.message : 'Failed to delete event' });
     }
   },
 
   enableRepeat: async (projectPath, eventId) => {
-    const { events, todos, weeklyTodos } = get();
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
     const event = events.find(e => e.id === eventId);
 
     if (!event || event.repeat) return;
@@ -192,14 +202,14 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
     set({ events: newEvents });
 
     try {
-      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos, weeklyTodos });
+      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos, weeklyTodos, spreadsheetItems });
     } catch (error) {
       set({ events, error: error instanceof Error ? error.message : 'Failed to enable repeat' });
     }
   },
 
   disableRepeat: async (projectPath, eventId) => {
-    const { events, todos, weeklyTodos } = get();
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
     const event = events.find(e => e.id === eventId);
 
     if (!event || !event.repeat || !event.repeatGroupId) return;
@@ -220,14 +230,14 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
     set({ events: newEvents });
 
     try {
-      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos, weeklyTodos });
+      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos, weeklyTodos, spreadsheetItems });
     } catch (error) {
       set({ events, error: error instanceof Error ? error.message : 'Failed to disable repeat' });
     }
   },
 
   deleteRepeatGroup: async (projectPath, repeatGroupId) => {
-    const { events, todos, weeklyTodos } = get();
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
 
     // Remove all events in the repeat group
     const newEvents = events.filter(e => e.repeatGroupId !== repeatGroupId);
@@ -244,7 +254,7 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
     set({ events: newEvents, todos: newTodos });
 
     try {
-      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos: newTodos, weeklyTodos });
+      await writeCalendarFile(projectPath, { version: '1.0.0', events: newEvents, todos: newTodos, weeklyTodos, spreadsheetItems });
     } catch (error) {
       set({ events, todos, error: error instanceof Error ? error.message : 'Failed to delete repeat group' });
     }
@@ -257,7 +267,7 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
 
   // Todo operations (legacy per-day)
   addTodo: async (projectPath, todoData) => {
-    const { events, todos, weeklyTodos } = get();
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
 
     // Get max order for this date
     const dateTodos = todos.filter(t => t.date === todoData.date);
@@ -274,14 +284,14 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
     set({ todos: newTodos });
 
     try {
-      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos: newTodos, weeklyTodos });
+      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos: newTodos, weeklyTodos, spreadsheetItems });
     } catch (error) {
       set({ todos, error: error instanceof Error ? error.message : 'Failed to save todo' });
     }
   },
 
   updateTodo: async (projectPath, todoId, updates) => {
-    const { events, todos, weeklyTodos } = get();
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
     const index = todos.findIndex(t => t.id === todoId);
 
     if (index === -1) return;
@@ -292,20 +302,20 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
     set({ todos: newTodos });
 
     try {
-      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos: newTodos, weeklyTodos });
+      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos: newTodos, weeklyTodos, spreadsheetItems });
     } catch (error) {
       set({ todos, error: error instanceof Error ? error.message : 'Failed to update todo' });
     }
   },
 
   deleteTodo: async (projectPath, todoId) => {
-    const { events, todos, weeklyTodos } = get();
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
     const newTodos = todos.filter(t => t.id !== todoId);
 
     set({ todos: newTodos });
 
     try {
-      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos: newTodos, weeklyTodos });
+      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos: newTodos, weeklyTodos, spreadsheetItems });
     } catch (error) {
       set({ todos, error: error instanceof Error ? error.message : 'Failed to delete todo' });
     }
@@ -326,7 +336,7 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
   },
 
   reorderTodos: async (projectPath, todoIds) => {
-    const { events, todos, weeklyTodos } = get();
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
 
     const newTodos = todos.map(todo => {
       const newOrder = todoIds.indexOf(todo.id);
@@ -339,7 +349,7 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
     set({ todos: newTodos });
 
     try {
-      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos: newTodos, weeklyTodos });
+      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos: newTodos, weeklyTodos, spreadsheetItems });
     } catch (error) {
       set({ todos, error: error instanceof Error ? error.message : 'Failed to reorder todos' });
     }
@@ -347,7 +357,7 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
 
   // Weekly todo operations
   addWeeklyTodo: async (projectPath, weekStart, title) => {
-    const { events, todos, weeklyTodos } = get();
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
 
     // Get max order for this week
     const weekTodos = weeklyTodos.filter(t => t.weekStart === weekStart);
@@ -367,14 +377,14 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
     set({ weeklyTodos: newWeeklyTodos });
 
     try {
-      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos, weeklyTodos: newWeeklyTodos });
+      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos, weeklyTodos: newWeeklyTodos, spreadsheetItems });
     } catch (error) {
       set({ weeklyTodos, error: error instanceof Error ? error.message : 'Failed to save todo' });
     }
   },
 
   updateWeeklyTodo: async (projectPath, todoId, updates) => {
-    const { events, todos, weeklyTodos } = get();
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
     const index = weeklyTodos.findIndex(t => t.id === todoId);
 
     if (index === -1) return;
@@ -385,20 +395,20 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
     set({ weeklyTodos: newWeeklyTodos });
 
     try {
-      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos, weeklyTodos: newWeeklyTodos });
+      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos, weeklyTodos: newWeeklyTodos, spreadsheetItems });
     } catch (error) {
       set({ weeklyTodos, error: error instanceof Error ? error.message : 'Failed to update todo' });
     }
   },
 
   deleteWeeklyTodo: async (projectPath, todoId) => {
-    const { events, todos, weeklyTodos } = get();
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
     const newWeeklyTodos = weeklyTodos.filter(t => t.id !== todoId);
 
     set({ weeklyTodos: newWeeklyTodos });
 
     try {
-      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos, weeklyTodos: newWeeklyTodos });
+      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos, weeklyTodos: newWeeklyTodos, spreadsheetItems });
     } catch (error) {
       set({ weeklyTodos, error: error instanceof Error ? error.message : 'Failed to delete todo' });
     }
@@ -416,6 +426,88 @@ export const useCalendarStore = create<CalendarStore>((set, get) => ({
   assignWeeklyTodoToDate: async (projectPath, todoId, date) => {
     const { updateWeeklyTodo } = get();
     await updateWeeklyTodo(projectPath, todoId, { assignedDate: date });
+  },
+
+  // Spreadsheet operations
+  addSpreadsheetItem: async (projectPath, itemData) => {
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
+    const sameTypeItems = spreadsheetItems.filter(i => i.weekStart === itemData.weekStart && i.type === itemData.type);
+    const maxOrder = sameTypeItems.length > 0 ? Math.max(...sameTypeItems.map(i => i.order)) : -1;
+
+    const item: SpreadsheetItem = {
+      ...itemData,
+      id: uuidv4(),
+      order: maxOrder + 1,
+      createdAt: new Date().toISOString(),
+    };
+
+    const newItems = [...spreadsheetItems, item];
+    set({ spreadsheetItems: newItems });
+
+    try {
+      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos, weeklyTodos, spreadsheetItems: newItems });
+    } catch (error) {
+      set({ spreadsheetItems, error: error instanceof Error ? error.message : 'Failed to save item' });
+    }
+  },
+
+  updateSpreadsheetItem: async (projectPath, itemId, updates) => {
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
+    const index = spreadsheetItems.findIndex(i => i.id === itemId);
+    if (index === -1) return;
+
+    const newItems = [...spreadsheetItems];
+    newItems[index] = { ...newItems[index], ...updates };
+    set({ spreadsheetItems: newItems });
+
+    try {
+      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos, weeklyTodos, spreadsheetItems: newItems });
+    } catch (error) {
+      set({ spreadsheetItems, error: error instanceof Error ? error.message : 'Failed to update item' });
+    }
+  },
+
+  deleteSpreadsheetItem: async (projectPath, itemId) => {
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
+    const newItems = spreadsheetItems.filter(i => i.id !== itemId);
+    set({ spreadsheetItems: newItems });
+
+    try {
+      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos, weeklyTodos, spreadsheetItems: newItems });
+    } catch (error) {
+      set({ spreadsheetItems, error: error instanceof Error ? error.message : 'Failed to delete item' });
+    }
+  },
+
+  toggleSpreadsheetCompletion: async (projectPath, itemId, date) => {
+    const { events, todos, weeklyTodos, spreadsheetItems } = get();
+    const index = spreadsheetItems.findIndex(i => i.id === itemId);
+    if (index === -1) return;
+
+    const item = spreadsheetItems[index];
+    const newCompletions = { ...item.completions };
+    if (newCompletions[date]) {
+      delete newCompletions[date];
+    } else {
+      newCompletions[date] = true;
+    }
+
+    const newItems = [...spreadsheetItems];
+    newItems[index] = { ...item, completions: newCompletions };
+    set({ spreadsheetItems: newItems });
+
+    try {
+      await writeCalendarFile(projectPath, { version: '1.0.0', events, todos, weeklyTodos, spreadsheetItems: newItems });
+    } catch (error) {
+      set({ spreadsheetItems, error: error instanceof Error ? error.message : 'Failed to toggle completion' });
+    }
+  },
+
+  getSpreadsheetItemsForWeek: (weekStart) => {
+    const { spreadsheetItems } = get();
+    return spreadsheetItems
+      .filter(i => i.weekStart === weekStart)
+      .sort((a, b) => a.order - b.order);
   },
 
   // Helpers

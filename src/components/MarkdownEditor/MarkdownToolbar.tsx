@@ -9,7 +9,10 @@ interface MarkdownToolbarProps {
   onNumberedList: () => void;
   onCodeBlock: () => void;
   onQuote: () => void;
+  onInsertTable: () => void;
   onTogglePreview: () => void;
+  onInsertSymbol: (symbol: string) => void;
+  onOpenSymbolMenu: () => void;
   showPreview: boolean;
   isDirty: boolean;
   fileName: string;
@@ -26,25 +29,28 @@ export function MarkdownToolbar({
   onNumberedList,
   onCodeBlock,
   onQuote,
+  onInsertTable,
   onTogglePreview,
+  onInsertSymbol,
+  onOpenSymbolMenu,
   showPreview,
   isDirty,
   fileName,
 }: MarkdownToolbarProps) {
   return (
-    <div className="flex items-center gap-1 px-2 py-1.5 border-b border-slate-200 bg-slate-50">
+    <div className="flex items-center gap-1 px-2 py-1.5 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
       {/* File name and dirty indicator */}
       <div className="flex items-center gap-2 mr-3">
         <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        <span className="text-sm text-slate-700">{fileName}</span>
+        <span className="text-sm text-slate-700 dark:text-slate-300">{fileName}</span>
         {isDirty && (
           <span className="w-2 h-2 rounded-full bg-amber-400" title="Unsaved changes" />
         )}
       </div>
 
-      <div className="h-5 w-px bg-slate-300 mx-1" />
+      <div className="h-5 w-px bg-slate-300 dark:bg-slate-600 mx-1" />
 
       {/* Heading dropdown */}
       <div className="relative group">
@@ -54,7 +60,7 @@ export function MarkdownToolbar({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+        <div className="absolute left-0 top-full mt-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
           {[1, 2, 3, 4, 5, 6].map((level) => (
             <button
               key={level}
@@ -87,7 +93,7 @@ export function MarkdownToolbar({
         </svg>
       </button>
 
-      <div className="h-5 w-px bg-slate-300 mx-1" />
+      <div className="h-5 w-px bg-slate-300 dark:bg-slate-600 mx-1" />
 
       <button onClick={onBulletList} className="toolbar-btn" title="Bullet List">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -110,7 +116,7 @@ export function MarkdownToolbar({
         </svg>
       </button>
 
-      <div className="h-5 w-px bg-slate-300 mx-1" />
+      <div className="h-5 w-px bg-slate-300 dark:bg-slate-600 mx-1" />
 
       <button onClick={onCode} className="toolbar-btn" title="Inline Code">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -124,10 +130,56 @@ export function MarkdownToolbar({
         </svg>
       </button>
 
+      <button onClick={onInsertTable} className="toolbar-btn" title="Insert Table">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+        </svg>
+      </button>
+
       <button onClick={onLink} className="toolbar-btn" title="Link">
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
         </svg>
+      </button>
+
+      <div className="h-5 w-px bg-slate-300 dark:bg-slate-600 mx-1" />
+
+      {/* Symbol buttons */}
+      <button
+        onClick={() => onInsertSymbol('✓')}
+        className="toolbar-btn"
+        title="Checkmark - type /check"
+      >
+        <span className="text-sm">✓</span>
+      </button>
+      <button
+        onClick={() => onInsertSymbol('✗')}
+        className="toolbar-btn"
+        title="X mark - type /x"
+      >
+        <span className="text-sm">✗</span>
+      </button>
+      <button
+        onClick={() => onInsertSymbol('⚠')}
+        className="toolbar-btn"
+        title="Warning - type /warning"
+      >
+        <span className="text-sm">⚠</span>
+      </button>
+      <button
+        onClick={() => onInsertSymbol('→')}
+        className="toolbar-btn"
+        title="Arrow - type /arrow"
+      >
+        <span className="text-sm">→</span>
+      </button>
+      <button
+        onClick={onOpenSymbolMenu}
+        className="toolbar-btn"
+        title="More symbols - type /"
+      >
+        <span className="text-sm">⋯</span>
       </button>
 
       {/* Spacer */}

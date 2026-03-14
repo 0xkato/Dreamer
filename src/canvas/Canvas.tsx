@@ -8,7 +8,7 @@ import { AnchorPoints } from '../elements/AnchorPoints';
 import { SelectionHandles } from './SelectionHandles';
 import { Grid } from './Grid';
 import type { Point, Rect, CanvasElement, AnchorPosition } from '../types';
-import { normalizeRect, rectsIntersect, pointInRect, pointInEllipse, pointNearLine, pointNearPath, getAnchorPoints } from '../utils/geometry';
+import { normalizeRect, rectsIntersect, pointInRect, pointInEllipse, pointNearLine, pointNearPath, pointNearBezier, getAnchorPoints, getCurvedControlPoints } from '../utils/geometry';
 
 export function Canvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -121,9 +121,20 @@ export function Canvas() {
           const targetAnchors = getAnchorPoints(target);
           const start = sourceAnchors[connector.sourceAnchor];
           const end = targetAnchors[connector.targetAnchor];
+          const hitThreshold = 8 / viewport.zoom;
 
-          if (pointNearLine(canvasPoint, start, end, 8 / viewport.zoom)) {
-            return connector.id;
+          if (connector.curveStyle === 'curved') {
+            const cp = getCurvedControlPoints(
+              start.x, start.y, end.x, end.y,
+              connector.sourceAnchor, connector.targetAnchor
+            );
+            if (pointNearBezier(canvasPoint, start, end, cp.cx1, cp.cy1, cp.cx2, cp.cy2, hitThreshold)) {
+              return connector.id;
+            }
+          } else {
+            if (pointNearLine(canvasPoint, start, end, hitThreshold)) {
+              return connector.id;
+            }
           }
         }
       }

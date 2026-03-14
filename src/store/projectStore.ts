@@ -35,9 +35,25 @@ interface ProjectStore {
   closeProject: () => void;
   removeFromRecent: (projectId: string) => void;
   clearError: () => void;
+
+  // Theme actions
+  toggleTheme: () => void;
+
+  // Bookmark actions
+  addBookmark: (path: string) => void;
+  removeBookmark: (path: string) => void;
+  isBookmarked: (path: string) => boolean;
 }
 
 const MAX_RECENT_PROJECTS = 10;
+
+function applyThemeClass(theme: 'light' | 'dark') {
+  if (theme === 'dark') {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+}
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   currentProject: null,
@@ -52,6 +68,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const settings = await loadAppSettings();
+      applyThemeClass(settings.theme);
       set({ settings, isLoading: false });
 
       // Load available projects
@@ -178,4 +195,50 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  toggleTheme: async () => {
+    const { settings } = get();
+    const newTheme = settings.theme === 'light' ? 'dark' : 'light';
+    applyThemeClass(newTheme);
+    const newSettings: AppSettings = { ...settings, theme: newTheme };
+    try {
+      await saveAppSettings(newSettings);
+      set({ settings: newSettings });
+    } catch (error) {
+      console.error('Failed to save theme:', error);
+    }
+  },
+
+  addBookmark: async (path) => {
+    const { settings } = get();
+    if (settings.bookmarks.includes(path)) return;
+    const newSettings: AppSettings = {
+      ...settings,
+      bookmarks: [...settings.bookmarks, path],
+    };
+    try {
+      await saveAppSettings(newSettings);
+      set({ settings: newSettings });
+    } catch (error) {
+      console.error('Failed to save bookmark:', error);
+    }
+  },
+
+  removeBookmark: async (path) => {
+    const { settings } = get();
+    const newSettings: AppSettings = {
+      ...settings,
+      bookmarks: settings.bookmarks.filter((b) => b !== path),
+    };
+    try {
+      await saveAppSettings(newSettings);
+      set({ settings: newSettings });
+    } catch (error) {
+      console.error('Failed to remove bookmark:', error);
+    }
+  },
+
+  isBookmarked: (path) => {
+    return get().settings.bookmarks.includes(path);
+  },
 }));
