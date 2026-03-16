@@ -689,7 +689,7 @@ export function CalendarView() {
             return (
               <div
                 key={date}
-                className={`flex-1 py-2 text-center border-l border-slate-200 dark:border-slate-700 cursor-pointer transition-colors ${
+                className={`group relative flex-1 py-2 text-center border-l border-slate-200 dark:border-slate-700 cursor-pointer transition-colors ${
                   date === today ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''
                 } ${date === selectedDate ? 'ring-2 ring-inset ring-indigo-400' : ''} ${
                   isDropTarget ? 'bg-indigo-100 dark:bg-indigo-900/50 ring-2 ring-indigo-400' : ''
@@ -709,6 +709,25 @@ export function CalendarView() {
                   }
                 }}
               >
+                {/* Quick add button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const now = new Date();
+                    const startTime = Math.round((now.getHours() * 60 + now.getMinutes()) / 15) * 15;
+                    const endTime = Math.min(startTime + 60, 1440);
+                    setEventDialog({
+                      isOpen: true,
+                      date,
+                      startTime,
+                      endTime,
+                    });
+                  }}
+                  className="opacity-0 group-hover:opacity-100 absolute top-1 right-1 w-5 h-5 flex items-center justify-center bg-indigo-500 dark:bg-indigo-600 text-white rounded-full text-xs hover:bg-indigo-600 dark:hover:bg-indigo-500 transition-all z-10"
+                  title="Quick add event"
+                >
+                  +
+                </button>
                 <div className="text-xs text-slate-500 uppercase">{getDayName(date)}</div>
                 <div className={`text-lg font-semibold ${
                   date === today ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'
