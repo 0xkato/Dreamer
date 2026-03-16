@@ -510,7 +510,10 @@ function App() {
             <div className="flex-1 overflow-x-auto">
               <TabBar
                 openFiles={openFiles}
-                activeFilePath={isSplitView && focusedPane === 'right' ? splitFilePath : activeFilePath}
+                activeFilePath={activeFilePath}
+                splitFilePath={splitFilePath}
+                isSplitView={isSplitView}
+                focusedPane={focusedPane}
                 onSelectTab={(path) => {
                   if (isSplitView && focusedPane === 'right') {
                     setSplitFilePath(path);
@@ -527,6 +530,7 @@ function App() {
                   }
                   closeFile(path);
                 }}
+                onToggleFocusedPane={() => setFocusedPane(prev => prev === 'left' ? 'right' : 'left')}
               />
             </div>
             {/* Split view toggle button */}
@@ -612,9 +616,25 @@ function App() {
           <div className="flex-1 flex overflow-hidden">
             {/* Left pane (always shown) */}
             <div
-              className={`flex-1 flex overflow-hidden ${isSplitView && focusedPane === 'left' ? 'ring-2 ring-inset ring-indigo-400' : ''}`}
+              className={`flex-1 flex flex-col overflow-hidden ${
+                isSplitView
+                  ? focusedPane === 'left'
+                    ? 'ring-2 ring-inset ring-indigo-500'
+                    : 'opacity-[0.97]'
+                  : ''
+              }`}
               onClick={() => isSplitView && setFocusedPane('left')}
             >
+            {/* Left pane top bar in split view */}
+            {isSplitView && (
+              <div className={`flex items-center justify-between px-3 flex-shrink-0 ${
+                focusedPane === 'left'
+                  ? 'h-1.5 bg-indigo-500'
+                  : 'h-1 bg-indigo-200 dark:bg-indigo-900'
+              }`}>
+              </div>
+            )}
+            <div className="flex-1 flex overflow-hidden">
             {activeFile ? (
               activeFile.type === 'canvas' ? (
                 <>
@@ -662,15 +682,27 @@ function App() {
               </div>
             )}
             </div>
+            </div>
 
             {/* Right pane (only in split view) */}
             {isSplitView && (
               <>
                 <div className="w-px bg-slate-300 dark:bg-slate-600 flex-shrink-0" />
                 <div
-                  className={`flex-1 flex overflow-hidden ${focusedPane === 'right' ? 'ring-2 ring-inset ring-indigo-400' : ''}`}
+                  className={`flex-1 flex flex-col overflow-hidden ${
+                    focusedPane === 'right'
+                      ? 'ring-2 ring-inset ring-emerald-500'
+                      : 'opacity-[0.97]'
+                  }`}
                   onClick={() => setFocusedPane('right')}
                 >
+                  {/* Right pane top bar */}
+                  <div className={`flex-shrink-0 ${
+                    focusedPane === 'right'
+                      ? 'h-1.5 bg-emerald-500'
+                      : 'h-1 bg-emerald-200 dark:bg-emerald-900'
+                  }`} />
+                  <div className="flex-1 flex overflow-hidden">
                   {splitFile ? (
                     splitFile.type === 'canvas' ? (
                       /* Canvas in split pane - show read-only notice */
@@ -708,6 +740,7 @@ function App() {
                       </div>
                     </div>
                   )}
+                  </div>
                 </div>
               </>
             )}

@@ -4,15 +4,23 @@ import type { OpenFile } from '../types/project';
 interface TabBarProps {
   openFiles: Map<string, OpenFile>;
   activeFilePath: string | null;
+  splitFilePath?: string | null;
+  isSplitView?: boolean;
+  focusedPane?: 'left' | 'right';
   onSelectTab: (path: string) => void;
   onCloseTab: (path: string) => void;
+  onToggleFocusedPane?: () => void;
 }
 
 export const TabBar: React.FC<TabBarProps> = ({
   openFiles,
   activeFilePath,
+  splitFilePath,
+  isSplitView = false,
+  focusedPane = 'left',
   onSelectTab,
   onCloseTab,
+  onToggleFocusedPane,
 }) => {
   const tabs = Array.from(openFiles.entries());
 
@@ -20,17 +28,51 @@ export const TabBar: React.FC<TabBarProps> = ({
     <div className="flex items-center overflow-x-auto">
       {tabs.map(([path, file]) => {
         const isActive = path === activeFilePath;
+        const isInLeftPane = isSplitView && path === activeFilePath;
+        const isInRightPane = isSplitView && path === splitFilePath;
+
+        // In split view, determine highlight: the tab is "selected" if it matches the focused pane's file
+        const isHighlighted = isSplitView
+          ? (focusedPane === 'left' && path === activeFilePath) ||
+            (focusedPane === 'right' && path === splitFilePath)
+          : isActive;
 
         return (
           <button
             key={path}
             onClick={() => onSelectTab(path)}
             className={`group flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-              isActive
+              isHighlighted
                 ? 'bg-white dark:bg-slate-800 border-indigo-500 text-slate-800 dark:text-slate-200'
                 : 'bg-slate-100 dark:bg-slate-900 border-transparent text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
           >
+            {/* Pane indicators (colored dots) in split view */}
+            {isSplitView && (isInLeftPane || isInRightPane) && (
+              <span className="flex items-center gap-0.5 flex-shrink-0">
+                {isInLeftPane && (
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      focusedPane === 'left'
+                        ? 'bg-indigo-500'
+                        : 'bg-indigo-300 dark:bg-indigo-700'
+                    }`}
+                    title="Left pane"
+                  />
+                )}
+                {isInRightPane && (
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      focusedPane === 'right'
+                        ? 'bg-emerald-500'
+                        : 'bg-emerald-300 dark:bg-emerald-700'
+                    }`}
+                    title="Right pane"
+                  />
+                )}
+              </span>
+            )}
+
             {/* File icon */}
             {file.type === 'canvas' ? (
               <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -68,6 +110,26 @@ export const TabBar: React.FC<TabBarProps> = ({
           </button>
         );
       })}
+
+      {/* Focus indicator in split view */}
+      {isSplitView && (
+        <button
+          onClick={onToggleFocusedPane}
+          className="flex items-center gap-1.5 ml-2 px-2 py-1 text-xs font-medium rounded transition-colors text-slate-500 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700 flex-shrink-0"
+          title="Click to toggle focused pane"
+        >
+          <span
+            className={`w-2 h-2 rounded-full ${
+              focusedPane === 'left'
+                ? 'bg-indigo-500'
+                : 'bg-emerald-500'
+            }`}
+          />
+          <span>
+            Focus: {focusedPane === 'left' ? 'Left' : 'Right'}
+          </span>
+        </button>
+      )}
     </div>
   );
 };
