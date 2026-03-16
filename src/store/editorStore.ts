@@ -7,6 +7,9 @@ import {
   writeCanvasFile,
 } from '../services/fileSystem';
 
+// Per-file save lock to prevent concurrent writes
+const savingFiles = new Set<string>();
+
 // Simple path join for web (paths are handled by backend)
 function joinPath(base: string, relative: string): string {
   // Normalize and join paths
@@ -213,11 +216,15 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   saveFile: async (projectPath, path) => {
+    // Skip if this file is already being saved
+    if (savingFiles.has(path)) return;
+
     const { openFiles } = get();
     const file = openFiles.get(path);
 
     if (!file) return;
 
+    savingFiles.add(path);
     set({ isSaving: true, error: null });
 
     try {
@@ -231,16 +238,23 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         await writeCanvasFile(absolutePath, content);
       }
 
-      // Mark as clean
-      const newOpenFiles = new Map(openFiles);
-      newOpenFiles.set(path, { ...file, isDirty: false });
-
-      set({ openFiles: newOpenFiles, isSaving: false });
+      // Mark as clean (re-read from store in case content changed during save)
+      const currentFiles = get().openFiles;
+      const currentFile = currentFiles.get(path);
+      if (currentFile) {
+        const newOpenFiles = new Map(currentFiles);
+        newOpenFiles.set(path, { ...currentFile, isDirty: false });
+        set({ openFiles: newOpenFiles, isSaving: false });
+      } else {
+        set({ isSaving: false });
+      }
     } catch (error) {
       set({
         isSaving: false,
         error: error instanceof Error ? error.message : 'Failed to save file',
       });
+    } finally {
+      savingFiles.delete(path);
     }
   },
 
