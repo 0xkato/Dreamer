@@ -11,6 +11,7 @@ import { TabBar } from './components/TabBar';
 import { CalendarView } from './components/Calendar';
 import { QuickLookup } from './components/QuickLookup';
 import { QuickCapture } from './components/QuickCapture';
+import { ShortcutsDialog } from './components/ShortcutsDialog';
 import { readMarkdownFile, writeMarkdownFile } from './services/fileSystem';
 import {
   useElementsStore,
@@ -57,6 +58,9 @@ function App() {
 
   // Global search state (Cmd+Shift+F)
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Shortcuts help dialog state (Cmd+/)
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
   // Project state
   const { currentProject, initialize: initializeProject } = useProjectStore();
@@ -286,6 +290,13 @@ function App() {
         return;
       }
 
+      // Help dialog (Cmd+/)
+      if (isMod && e.key === '/') {
+        e.preventDefault();
+        setIsShortcutsOpen(true);
+        return;
+      }
+
       // Ignore if typing in an input (but not CodeMirror)
       if (
         e.target instanceof HTMLInputElement ||
@@ -442,6 +453,8 @@ function App() {
           onClose={() => setIsQuickCaptureOpen(false)}
           onCapture={handleQuickCapture}
         />
+
+        <ShortcutsDialog isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
       </div>
     );
   }
@@ -715,6 +728,9 @@ function App() {
         onClose={() => setIsQuickCaptureOpen(false)}
         onCapture={handleQuickCapture}
       />
+
+      {/* Shortcuts help dialog */}
+      <ShortcutsDialog isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
     </div>
   );
 }
