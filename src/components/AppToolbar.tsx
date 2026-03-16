@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useProjectStore, useEditorStore, useCanvasStore, useElementsStore } from '../store';
 import { ProjectSelector } from './ProjectSelector';
 
@@ -34,8 +34,20 @@ export function AppToolbar({ onSave }: AppToolbarProps) {
   const [selectorMode, setSelectorMode] = useState<'create' | 'open'>('open');
 
   const { currentProject } = useProjectStore();
-  const { activeFilePath, openFiles, closeFile } = useEditorStore();
+  const { activeFilePath, openFiles, closeFile, isSaving } = useEditorStore();
   const { viewport, resetViewport, toggleGrid, showGrid } = useCanvasStore();
+
+  // Show brief "Saved" indicator after save completes
+  const [showSaved, setShowSaved] = useState(false);
+  const wasSaving = useRef(false);
+  useEffect(() => {
+    if (wasSaving.current && !isSaving) {
+      setShowSaved(true);
+      const timer = setTimeout(() => setShowSaved(false), 1500);
+      return () => clearTimeout(timer);
+    }
+    wasSaving.current = isSaving;
+  }, [isSaving]);
   const { undo, redo, historyIndex, history } = useElementsStore();
 
   const activeFile = activeFilePath ? openFiles.get(activeFilePath) : null;
@@ -187,6 +199,9 @@ export function AppToolbar({ onSave }: AppToolbarProps) {
           </span>
           {activeFile.isDirty && (
             <span className="w-2 h-2 rounded-full bg-amber-400" title="Unsaved changes" />
+          )}
+          {showSaved && !activeFile.isDirty && (
+            <span className="text-xs text-emerald-500 animate-pulse">Saved</span>
           )}
         </div>
       )}
