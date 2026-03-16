@@ -1,5 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { getImageUrl } from '../../services/fileSystem';
 
 interface MarkdownPreviewProps {
@@ -46,7 +47,10 @@ export function MarkdownPreview({ content, projectPath, onWikiLinkClick }: Markd
         '<a href="#" class="wiki-link text-indigo-600 dark:text-indigo-400 hover:underline" data-wiki-link="$1">$1</a>'
       );
 
-      return parsed;
+      return DOMPurify.sanitize(parsed, {
+        ADD_ATTR: ['data-wiki-link', 'data-canvas-file'],
+        ADD_TAGS: ['svg', 'line', 'rect', 'path'],
+      });
     } catch {
       return '<p>Error rendering markdown</p>';
     }
