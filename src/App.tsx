@@ -12,6 +12,7 @@ import { CalendarView } from './components/Calendar';
 import { QuickLookup } from './components/QuickLookup';
 import { QuickCapture } from './components/QuickCapture';
 import { ShortcutsDialog } from './components/ShortcutsDialog';
+import { TemplateManager } from './components/TemplateManager';
 import { readMarkdownFile, writeMarkdownFile } from './services/fileSystem';
 import {
   useElementsStore,
@@ -61,6 +62,9 @@ function App() {
 
   // Shortcuts help dialog state (Cmd+/)
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+
+  // Template manager state
+  const [isTemplateManagerOpen, setIsTemplateManagerOpen] = useState(false);
 
   // Project state
   const { currentProject, initialize: initializeProject } = useProjectStore();
@@ -463,7 +467,7 @@ function App() {
     <div className="flex flex-col h-screen bg-gray-100 dark:bg-slate-900">
       {/* Top toolbar */}
       <div className="relative z-50">
-        <AppToolbar onSave={handleSave} />
+        <AppToolbar onSave={handleSave} onOpenTemplateManager={() => setIsTemplateManagerOpen(true)} />
       </div>
 
       {/* View toggle tabs */}
@@ -770,6 +774,9 @@ function App() {
 
       {/* Shortcuts help dialog */}
       <ShortcutsDialog isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
+
+      {/* Template manager dialog */}
+      <TemplateManager isOpen={isTemplateManagerOpen} onClose={() => setIsTemplateManagerOpen(false)} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Template, TemplateMetadata } from '../services/templateService';
-import { loadTemplates, saveAsTemplate, SYMBOLS } from '../services/templateService';
+import { loadTemplates, saveAsTemplate, deleteTemplate as deleteTemplateApi, SYMBOLS } from '../services/templateService';
 
 interface TemplateStore {
   // State
@@ -21,6 +21,7 @@ interface TemplateStore {
     location: 'global' | 'project',
     projectPath?: string
   ) => Promise<void>;
+  deleteTemplate: (template: Template, projectPath?: string) => Promise<void>;
 
   // Slash menu actions
   openSlashMenu: (position: { x: number; y: number }) => void;
@@ -64,6 +65,22 @@ export const useTemplateStore = create<TemplateStore>((set, get) => ({
       set({
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to save template',
+      });
+      throw error;
+    }
+  },
+
+  deleteTemplate: async (template, projectPath) => {
+    set({ isLoading: true, error: null });
+    try {
+      await deleteTemplateApi(template, projectPath);
+      // Refresh templates after deleting
+      const templates = await loadTemplates(projectPath);
+      set({ templates, isLoading: false });
+    } catch (error) {
+      set({
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to delete template',
       });
       throw error;
     }

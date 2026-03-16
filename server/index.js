@@ -638,6 +638,35 @@ app.get('/api/templates', async (req, res) => {
   }
 });
 
+// Delete a template
+app.delete('/api/templates', async (req, res) => {
+  try {
+    const { path: templatePath, fileName } = req.body;
+
+    // Determine actual path - 'global' means app-wide templates
+    let actualPath;
+    if (templatePath === 'global') {
+      actualPath = TEMPLATES_DIR;
+    } else {
+      actualPath = templatePath;
+    }
+
+    const filePath = path.join(actualPath, fileName);
+
+    // Ensure the file exists
+    try {
+      await fs.access(filePath);
+    } catch {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+
+    await fs.unlink(filePath);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Save a template
 app.post('/api/templates', async (req, res) => {
   try {

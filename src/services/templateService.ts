@@ -165,6 +165,28 @@ export async function saveAsTemplate(
   }
 }
 
+// Delete a template
+export async function deleteTemplate(
+  template: Template,
+  projectPath?: string
+): Promise<void> {
+  const basePath = template.location === 'global' ? 'global' : `${projectPath}/.templates`;
+
+  const response = await fetch(`${API_BASE}/api/templates`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      path: basePath,
+      fileName: template.path,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to delete template');
+  }
+}
+
 // Get template content with placeholders replaced
 export function getTemplateContent(template: Template, title: string): string {
   return replacePlaceholders(template.content, title);
