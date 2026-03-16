@@ -81,7 +81,7 @@ export function SearchPanel({ onClose, onOpenFile }: SearchPanelProps) {
   const totalMatches = results.reduce((sum, r) => sum + r.matches.length, 0);
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700">
+    <div className="flex flex-col bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center gap-2">
@@ -119,7 +119,7 @@ export function SearchPanel({ onClose, onOpenFile }: SearchPanelProps) {
       </div>
 
       {/* Results */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="max-h-[60vh] overflow-y-auto">
         {isLoading && (
           <div className="flex items-center justify-center py-8">
             <svg className="w-5 h-5 text-slate-400 dark:text-slate-500 animate-spin" fill="none" viewBox="0 0 24 24">

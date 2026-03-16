@@ -573,17 +573,7 @@ function App() {
               className={`flex-1 overflow-hidden transition-opacity duration-200 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}
               style={{ width: sidebarWidth }}
             >
-              {isSearchOpen ? (
-                <SearchPanel
-                  onClose={() => setIsSearchOpen(false)}
-                  onOpenFile={(filePath) => {
-                    openFile(currentProject.path, filePath, filePath.endsWith('.canvas') ? 'canvas' : 'markdown');
-                    setIsSearchOpen(false);
-                  }}
-                />
-              ) : (
-                <FileTree />
-              )}
+              <FileTree />
             </div>
 
             {/* Resize handle */}
@@ -746,6 +736,22 @@ function App() {
             )}
           </div>
         </div>
+        </div>
+      )}
+
+      {/* Floating search panel */}
+      {isSearchOpen && (
+        <div className="fixed inset-0 z-[150] flex items-start justify-center pt-[10vh]">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setIsSearchOpen(false)} />
+          <div className="relative w-full max-w-2xl mx-4">
+            <SearchPanel
+              onClose={() => setIsSearchOpen(false)}
+              onOpenFile={(filePath) => {
+                openFile(currentProject.path, filePath, filePath.endsWith('.canvas') ? 'canvas' : 'markdown');
+                setIsSearchOpen(false);
+              }}
+            />
+          </div>
         </div>
       )}
 
