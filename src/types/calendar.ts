@@ -76,57 +76,56 @@ export function parseTime(timeStr: string): number {
   return hours * 60 + (mins || 0);
 }
 
-// Get current date as YYYY-MM-DD
+// Get current date as YYYY-MM-DD (using local date, not UTC)
 export function getTodayString(): string {
-  const today = new Date();
-  return today.toISOString().split('T')[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // Alias for getTodayString
 export const getToday = getTodayString;
 
-// Add days to a date string
+// Add days to a date string (using UTC arithmetic to avoid DST issues)
 export function addDays(dateStr: string, days: number): string {
   const date = new Date(dateStr);
-  date.setDate(date.getDate() + days);
+  date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().split('T')[0];
 }
 
-// Get day name from date string
+// Get day name from date string (parse at noon local to avoid DST edge)
 export function getDayName(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = new Date(dateStr + 'T12:00:00');
   return date.toLocaleDateString('en-US', { weekday: 'short' });
 }
 
 // Get formatted date (e.g., "Dec 17")
 export function getFormattedDate(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = new Date(dateStr + 'T12:00:00');
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 // Get the Sunday (start) of the week for a given date
 export function getWeekStart(dateStr: string): string {
   const date = new Date(dateStr);
-  const day = date.getDay();
-  date.setDate(date.getDate() - day);
+  const day = date.getUTCDay();
+  date.setUTCDate(date.getUTCDate() - day);
   return date.toISOString().split('T')[0];
 }
 
 // Get week number of the year (ISO week)
 export function getWeekNumber(dateStr: string): number {
   const date = new Date(dateStr);
-  date.setHours(0, 0, 0, 0);
-  // Thursday in current week decides the year
-  date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+  // Thursday in current week decides the year (using UTC to avoid DST)
+  date.setUTCDate(date.getUTCDate() + 3 - (date.getUTCDay() + 6) % 7);
   // January 4 is always in week 1
-  const week1 = new Date(date.getFullYear(), 0, 4);
+  const week1 = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
   // Adjust to Thursday in week 1 and count number of weeks from date to week1
-  return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+  return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getUTCDay() + 6) % 7) / 7);
 }
 
 // Format week as "Week X of YYYY"
 export function formatWeek(dateStr: string): string {
   const weekNum = getWeekNumber(dateStr);
   const date = new Date(dateStr);
-  return `Week ${weekNum} of ${date.getFullYear()}`;
+  return `Week ${weekNum} of ${date.getUTCFullYear()}`;
 }

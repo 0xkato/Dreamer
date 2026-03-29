@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useCalendarStore, useProjectStore } from '../../store';
-import { getTodayString, addDays, getDayName, getFormattedDate, formatTime, formatWeek } from '../../types/calendar';
+import { getTodayString, addDays, getDayName, getFormattedDate, formatTime, formatWeek, getWeekStart } from '../../types/calendar';
 import type { CalendarEvent, WeeklyTodo } from '../../types/calendar';
 import { EventDialog, type DeleteMode } from './EventDialog';
 import { WeeklyTodoPanel } from './WeeklyTodoPanel';
@@ -60,11 +60,7 @@ export function CalendarView() {
   } = useCalendarStore();
 
   const [weekStart, setWeekStart] = useState(() => {
-    const today = new Date(getTodayString());
-    const day = today.getDay();
-    const diff = today.getDate() - day; // Adjust to get Sunday
-    const sunday = new Date(today.setDate(diff));
-    return sunday.toISOString().split('T')[0];
+    return getWeekStart(getTodayString());
   });
 
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -122,11 +118,7 @@ export function CalendarView() {
   const goToPrevWeek = () => setWeekStart(addDays(weekStart, -7));
   const goToNextWeek = () => setWeekStart(addDays(weekStart, 7));
   const goToToday = () => {
-    const todayDate = new Date(getTodayString());
-    const day = todayDate.getDay();
-    const diff = todayDate.getDate() - day;
-    const sunday = new Date(todayDate.setDate(diff));
-    setWeekStart(sunday.toISOString().split('T')[0]);
+    setWeekStart(getWeekStart(getTodayString()));
     setSelectedDate(getTodayString());
   };
 
@@ -732,7 +724,7 @@ export function CalendarView() {
                 <div className={`text-lg font-semibold ${
                   date === today ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'
                 }`}>
-                  {new Date(date).getDate()}
+                  {new Date(date + 'T12:00:00').getDate()}
                 </div>
                 {/* Show todo count badge */}
                 {incompleteTodos > 0 && (

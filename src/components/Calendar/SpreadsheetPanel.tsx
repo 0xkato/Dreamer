@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useCalendarStore, useProjectStore } from '../../store';
-import { getTodayString, getDayName } from '../../types/calendar';
+import { getTodayString, getDayName, addDays } from '../../types/calendar';
 
 interface SpreadsheetPanelProps {
   weekStart: string;
@@ -107,15 +107,9 @@ export function SpreadsheetPanel({ weekStart, weekDays }: SpreadsheetPanelProps)
     while (true) {
       if (item.completions[checkDate]) {
         streak++;
-        // Go to previous day
-        const d = new Date(checkDate + 'T00:00:00');
-        d.setDate(d.getDate() - 1);
-        checkDate = d.toISOString().split('T')[0];
+        checkDate = addDays(checkDate, -1);
       } else if (checkDate === today) {
-        // Today not checked yet, start from yesterday
-        const d = new Date(today + 'T00:00:00');
-        d.setDate(d.getDate() - 1);
-        checkDate = d.toISOString().split('T')[0];
+        checkDate = addDays(today, -1);
       } else {
         break;
       }
@@ -285,7 +279,7 @@ export function SpreadsheetPanel({ weekStart, weekDays }: SpreadsheetPanelProps)
               >
                 {weekDays.map((date) => (
                   <option key={date} value={date}>
-                    {getDayName(date)} {new Date(date).getDate()}
+                    {getDayName(date)} {new Date(date + 'T12:00:00').getDate()}
                   </option>
                 ))}
               </select>
@@ -326,7 +320,7 @@ export function SpreadsheetPanel({ weekStart, weekDays }: SpreadsheetPanelProps)
             </th>
             {weekDays.map((date, idx) => {
               const isToday = idx === todayIndex;
-              const dayNum = new Date(date).getDate();
+              const dayNum = new Date(date + 'T12:00:00').getDate();
               return (
                 <th
                   key={date}
